@@ -12,6 +12,7 @@ fn main() {
 
     App::new()
         .add_plugins((
+            DefaultPlugins,
             IsometricCameraPlugin,
             #[cfg(feature = "perfmon")]
             PerfPlugin,
