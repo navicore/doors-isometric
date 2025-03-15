@@ -18,6 +18,12 @@ iyes_perf_ui = "0.4"
 leafwing-input-manager = "0.16"
 k8s-openapi = { version = "0.24", features = ["latest"] }
 kube = { version = "0.99", features = ["runtime", "derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+tokio = { version = "1", features = ["full", "macros"] }
+bevy-tokio-tasks = "0.15"
+jsonpath_lib = "0.3"
 
 [dev-dependencies]
 bevy_dylib = "0.15"
@@ -26,4 +32,3 @@ bevy_dylib = "0.15"
 default = ["k8s", "perfmon"]
 k8s = []
 perfmon = []
-

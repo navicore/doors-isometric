@@ -1,3 +1,5 @@
+use integration::integration_plugin::IntegrationPlugin;
+mod integration;
 use bevy::prelude::*;
 use camera::IsometricCameraPlugin;
 use clap::Parser;
@@ -5,6 +7,7 @@ use clap::Parser;
 use perf::PerfPlugin;
 mod camera;
 mod cli;
+mod floorplan;
 mod perf;
 
 fn main() {
@@ -14,6 +17,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             IsometricCameraPlugin,
+            IntegrationPlugin,
             #[cfg(feature = "perfmon")]
             PerfPlugin,
         ))
