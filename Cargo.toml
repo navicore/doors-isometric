@@ -23,7 +23,7 @@ kube = { version = "0.99", features = ["runtime", "derive"] }
 bevy_dylib = "0.15"
 
 [features]
-default = ["k8s"]
+default = ["k8s", "perfmon"]
 k8s = []
 perfmon = []
 
