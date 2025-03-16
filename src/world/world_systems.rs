@@ -1,8 +1,5 @@
 use crate::floorplan::FloorPlanEvent;
-use bevy::{
-    color::palettes::tailwind::{GRAY_100, RED_100},
-    prelude::*,
-};
+use bevy::{color::palettes::tailwind::*, prelude::*};
 use petgraph::prelude::*;
 
 use super::world_component::{Door, Room};
@@ -22,8 +19,8 @@ pub fn handle_floor_plan_event(
             if let Some(_room_data) = floorplan.graph.node_weight(node_index) {
                 let position = calculate_room_position(node_index);
 
-                let shape = meshes.add(Cuboid::new(4.0, 0.5, 4.0));
-                let mat = materials.add(Color::from(GRAY_100));
+                let shape = meshes.add(Cuboid::new(4.0, 1.5, 4.0));
+                let mat = materials.add(Color::from(GRAY_600));
                 commands.spawn((
                     Mesh3d(shape),
                     MeshMaterial3d(mat),
@@ -42,7 +39,7 @@ pub fn handle_floor_plan_event(
             let direction = target_pos - source_pos;
 
             let shape = meshes.add(Cuboid::new(1.0, 1.5, 0.2));
-            let mat = materials.add(Color::from(RED_100));
+            let mat = materials.add(Color::from(RED_500));
             commands.spawn((
                 Mesh3d(shape),
                 MeshMaterial3d(mat),
