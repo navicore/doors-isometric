@@ -7,6 +7,7 @@ use clap::Parser;
 use super::{k8s_file, k8s_live};
 
 use super::test_mode;
+use bevy_tokio_tasks::TokioTasksPlugin;
 
 pub struct IntegrationPlugin;
 
@@ -22,7 +23,7 @@ impl Plugin for IntegrationPlugin {
             None | Some(cli::RoomGeneratorType::K8sFile) => {
                 app.add_plugins(k8s_file::K8sIntegrationPlugin)
             }
-            _ => app.add_plugins(test_mode::TestModeIntegrationPlugin),
+            _ => app.add_plugins((test_mode::TestModeIntegrationPlugin,)),
         };
     }
 }

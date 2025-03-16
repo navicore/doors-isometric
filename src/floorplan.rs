@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use bevy::prelude::{Event, States};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
@@ -33,7 +32,7 @@ pub type FloorPlanResult<T> = Result<T, FloorPlanError>;
 
 #[derive(Debug, Clone, Default, States)]
 pub struct FloorPlan {
-    graph: DiGraph<RoomData, DoorData>,
+    pub graph: DiGraph<RoomData, DoorData>,
     room_index_map: HashMap<String, NodeIndex>,
     start_room_id: Option<String>,
 }
