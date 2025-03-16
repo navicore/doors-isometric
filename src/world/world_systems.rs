@@ -1,5 +1,8 @@
 use crate::floorplan::FloorPlanEvent;
-use bevy::{color::palettes::tailwind::*, prelude::*};
+use bevy::{
+    color::palettes::tailwind::{GRAY_600, RED_500},
+    prelude::*,
+};
 use petgraph::prelude::*;
 
 use super::world_component::{Door, Room};
@@ -12,7 +15,6 @@ pub fn handle_floor_plan_event(
 ) {
     for event in events.read() {
         let floorplan = &event.floorplan;
-        warn!("Floorplan: {:?}", floorplan);
 
         // Visualize Rooms
         for node_index in floorplan.graph.node_indices() {
