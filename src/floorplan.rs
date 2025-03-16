@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use bevy::prelude::{Event, States};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;

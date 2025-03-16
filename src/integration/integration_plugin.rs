@@ -7,7 +7,6 @@ use clap::Parser;
 use super::{k8s_file, k8s_live};
 
 use super::test_mode;
-use bevy_tokio_tasks::TokioTasksPlugin;
 
 pub struct IntegrationPlugin;
 
