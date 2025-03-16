@@ -1,11 +1,11 @@
-use crate::floorplan::{DoorData, FloorPlan, FloorPlanEvent, FloorPlanResult, RoomData};
+use crate::floorplan::{Door, FloorPlan, FloorPlanEvent, FloorPlanResult, Room};
 use bevy::prelude::*;
 
 fn door_adder(
     plan: &mut FloorPlan,
-    room1: &RoomData,
-    room2: &RoomData,
-    door: &DoorData,
+    room1: &Room,
+    room2: &Room,
+    door: &Door,
 ) -> FloorPlanResult<()> {
     plan.add_door(
         plan.get_room_idx_by_id(&room1.id)?,
@@ -15,20 +15,20 @@ fn door_adder(
     Ok(())
 }
 
-fn create_rooms(lim: u8) -> Vec<RoomData> {
+fn create_rooms(lim: u8) -> Vec<Room> {
     (0..lim)
-        .map(|i| RoomData {
+        .map(|i| Room {
             id: i.to_string(),
             name: format!("Room {i}"),
         })
         .collect()
 }
 
-fn create_doors(lim: u8) -> Vec<DoorData> {
+fn create_doors(lim: u8) -> Vec<Door> {
     (0..lim)
-        .map(|i| DoorData {
+        .map(|i| Door {
             id: i.to_string(),
-            name: format!("DoorData {i}"),
+            name: format!("Door {i}"),
             is_exit: false,
         })
         .collect()
@@ -38,13 +38,13 @@ pub fn fire_room2_floorplan_event(mut events: EventWriter<FloorPlanEvent>) {
     if let Ok(floorplan) = generate_room2_floorplan() {
         events.send(FloorPlanEvent { floorplan });
     } else {
-        warn!("No 2RoomData FlooplanEvent");
+        warn!("No 2Room FlooplanEvent");
     }
 }
 
 // create a 2 room floorplan
 fn generate_room2_floorplan() -> FloorPlanResult<FloorPlan> {
-    info!("generating 2RoomData FloorPlanEvent");
+    info!("generating 2Room FloorPlanEvent");
 
     let mut floorplan = FloorPlan::new();
     let rooms = create_rooms(2);
@@ -64,13 +64,13 @@ pub fn fire_room5_floorplan_event(mut events: EventWriter<FloorPlanEvent>) {
     if let Ok(floorplan) = generate_room5_floorplan() {
         events.send(FloorPlanEvent { floorplan });
     } else {
-        error!("No 5RoomData FloorPlanEvent");
+        error!("No 5Room FloorPlanEvent");
     }
 }
 
 // create a 5 room floorplan
 fn generate_room5_floorplan() -> FloorPlanResult<FloorPlan> {
-    info!("generating 5RoomData FloorPlanEvent");
+    info!("generating 5Room FloorPlanEvent");
 
     let mut floorplan = FloorPlan::new();
 
@@ -103,13 +103,13 @@ pub fn fire_room25_floorplan_event(mut events: EventWriter<FloorPlanEvent>) {
     if let Ok(floorplan) = generate_room25_floorplan() {
         events.send(FloorPlanEvent { floorplan });
     } else {
-        error!("No 25RoomData FloorPlanEvent");
+        error!("No 25Room FloorPlanEvent");
     }
 }
 
 // create a 25 room floorplan
 fn generate_room25_floorplan() -> FloorPlanResult<FloorPlan> {
-    info!("generating 25RoomData FloorPlanEvent");
+    info!("generating 25Room FloorPlanEvent");
     let mut floorplan = FloorPlan::new();
 
     let rooms = create_rooms(25);

@@ -1,6 +1,6 @@
 use std::fs;
 
-use crate::floorplan::{DoorData, FloorPlan, FloorPlanEvent, FloorPlanResult, RoomData};
+use crate::floorplan::{Door, FloorPlan, FloorPlanEvent, FloorPlanResult, Room};
 use bevy::prelude::*;
 use serde_json::json;
 use serde_yaml::Value;
@@ -9,12 +9,12 @@ use super::k8s_json::{get_names, get_namespaces};
 
 pub fn connect_rooms_with_doors(
     plan: &mut FloorPlan,
-    room1: &RoomData,
-    room2: &RoomData,
+    room1: &Room,
+    room2: &Room,
     door_id: &mut usize,
 ) -> FloorPlanResult<()> {
     debug!("Connecting rooms with doors");
-    let door1 = DoorData {
+    let door1 = Door {
         id: door_id.to_string(),
         name: format!("Door to {}", room2.name),
         is_exit: false,
@@ -26,7 +26,7 @@ pub fn connect_rooms_with_doors(
         door1,
     );
 
-    let door2 = DoorData {
+    let door2 = Door {
         id: door_id.to_string(),
         name: format!("Door to {}", room1.name),
         is_exit: true, // second door is always the way out
@@ -46,13 +46,13 @@ fn add_rooms(
     plan: &mut FloorPlan,
     json_value: &serde_json::Value,
     namespace: &str,
-    outer_room: &RoomData,
+    outer_room: &Room,
     door_id_generator: &mut usize,
     kind: &str,
 ) -> FloorPlanResult<()> {
     if let Ok(resources) = get_names(json_value, kind, namespace) {
         for r in resources {
-            let room = RoomData {
+            let room = Room {
                 id: format!("{namespace}-{}-{}", r.kind, r.name),
                 name: format!("{} {}", r.kind, r.name),
             };
@@ -72,14 +72,14 @@ fn add_rooms(
             }
 
             for container in r.children {
-                let container_room = RoomData {
+                let container_room = Room {
                     id: format!("{namespace}-{}-{}-{}", r.kind, "container", container.name),
                     name: format!("{} {}", "container", container.name),
                 };
                 plan.add_room(container_room.clone());
                 connect_rooms_with_doors(plan, &container_room, &room, door_id_generator)?;
                 for volume_mount in container.children {
-                    let volume_mount_room = RoomData {
+                    let volume_mount_room = Room {
                         id: format!(
                             "{namespace}-{}-{}-{}-{}",
                             r.kind, "container", container.name, volume_mount.name
@@ -98,7 +98,7 @@ fn add_rooms(
         }
         Ok(())
     } else {
-        Err(crate::floorplan::FloorPlanError::RoomDataNotFound(
+        Err(crate::floorplan::FloorPlanError::RoomNotFound(
             "no resources".to_string(),
         ))
     }
@@ -108,11 +108,11 @@ fn setup_hallway_and_rooms(
     plan: &mut FloorPlan,
     json_value: &serde_json::Value, // might want to pass this in a pre-parsed format: TODO
     namespace: &str,
-    outer_room: &RoomData, // will often be the cluster lobby
+    outer_room: &Room, // will often be the cluster lobby
     door_id_generator: &mut usize,
     kind: &str, // hallways collect similar resources
 ) -> FloorPlanResult<()> {
-    let hallway = RoomData {
+    let hallway = Room {
         id: format!("{namespace}-{kind}s"),
         name: format!("{namespace} {kind}s Hallway"),
     };
@@ -135,7 +135,7 @@ fn generate_k8s_floorplan_from_file() -> FloorPlanResult<FloorPlan> {
         if let Ok(yaml_value) = serde_yaml::from_str::<Value>(&yaml_content) {
             let json_value = json!(yaml_value);
 
-            let cluster_room = RoomData {
+            let cluster_room = Room {
                 id: "cluster".to_string(),
                 name: "Cluster Lobby".to_string(),
             };
@@ -144,7 +144,7 @@ fn generate_k8s_floorplan_from_file() -> FloorPlanResult<FloorPlan> {
             let mut door_id = 0;
             if let Ok(namespaces) = get_namespaces(&json_value) {
                 for namespace in namespaces {
-                    let namespace_room = RoomData {
+                    let namespace_room = Room {
                         id: namespace.clone(),
                         name: format!("{namespace} NS Hallway"),
                     };
@@ -182,7 +182,7 @@ fn generate_k8s_floorplan_from_file() -> FloorPlanResult<FloorPlan> {
         Ok(floorplan)
     } else {
         error!("No k8s yaml file found");
-        Err(crate::floorplan::FloorPlanError::RoomDataNotFound(
+        Err(crate::floorplan::FloorPlanError::RoomNotFound(
             "no file".to_string(),
         ))
     }
