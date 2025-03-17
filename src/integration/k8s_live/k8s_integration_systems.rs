@@ -1,6 +1,6 @@
 use super::k8s_api::get_names;
 use crate::cli::Cli;
-use crate::floorplan::{FloorPlan, FloorPlanEvent, FloorPlanResult, RoomData};
+use crate::floorplan::{FloorPlan, FloorPlanEvent, FloorPlanResult, Room};
 use crate::integration::integration_utils::IntegrationResource;
 use crate::integration::k8s_file::k8s_integration_systems::connect_rooms_with_doors;
 use bevy::prelude::*;
@@ -30,8 +30,8 @@ async fn fetch_namespaces(
         .map_err(|e| crate::floorplan::FloorPlanError::ServiceError(e.to_string()))
 }
 
-fn create_cluster_room() -> RoomData {
-    RoomData {
+fn create_cluster_room() -> Room {
+    Room {
         id: "cluster".to_string(),
         name: "Cluster Lobby".to_string(),
     }
@@ -43,7 +43,7 @@ fn create_cluster_room() -> RoomData {
 */
 async fn process_namespace(
     floorplan: &mut FloorPlan,
-    cluster_room: &RoomData,
+    cluster_room: &Room,
     door_id: &mut usize,
     client: &Client,
     namespace: &str,
@@ -69,8 +69,8 @@ async fn process_namespace(
     Ok(())
 }
 
-fn create_namespace_room(namespace: &str) -> RoomData {
-    RoomData {
+fn create_namespace_room(namespace: &str) -> Room {
+    Room {
         id: namespace.to_string(),
         name: format!("{namespace} NS Hallway"),
     }
@@ -79,7 +79,7 @@ fn create_namespace_room(namespace: &str) -> RoomData {
 async fn setup_hallway_and_rooms(
     plan: &mut FloorPlan,
     namespace: &str,
-    outer_room: &RoomData,
+    outer_room: &Room,
     door_id_generator: &mut usize,
     kind: &str,
     client: &Client,
@@ -94,8 +94,8 @@ async fn setup_hallway_and_rooms(
     Ok(())
 }
 
-fn create_hallway_room(namespace: &str, kind: &str) -> RoomData {
-    RoomData {
+fn create_hallway_room(namespace: &str, kind: &str) -> Room {
+    Room {
         id: format!("{namespace}-{kind}s"),
         name: format!("{namespace} {kind}s Hallway"),
     }
@@ -105,7 +105,7 @@ async fn add_rooms(
     plan: &mut FloorPlan,
     client: &Client,
     namespace: &str,
-    outer_room: &RoomData,
+    outer_room: &Room,
     door_id_generator: &mut usize,
     kind: &str,
 ) -> FloorPlanResult<()> {
@@ -127,8 +127,8 @@ async fn add_rooms(
     Ok(())
 }
 
-fn create_resource_room(namespace: &str, r: &IntegrationResource) -> RoomData {
-    RoomData {
+fn create_resource_room(namespace: &str, r: &IntegrationResource) -> Room {
+    Room {
         id: format!("{namespace}-{}-{}", r.kind, r.name),
         name: format!("{} {}", r.kind, r.name),
     }
@@ -137,7 +137,7 @@ fn create_resource_room(namespace: &str, r: &IntegrationResource) -> RoomData {
 fn connect_to_parent_room(
     plan: &mut FloorPlan,
     namespace: &str,
-    room: &RoomData,
+    room: &Room,
     parent: &IntegrationResource,
     door_id_generator: &mut usize,
 ) -> FloorPlanResult<()> {
@@ -156,7 +156,7 @@ fn add_container_rooms(
     plan: &mut FloorPlan,
     namespace: &str,
     r: &IntegrationResource,
-    room: &RoomData,
+    room: &Room,
     door_id_generator: &mut usize,
 ) -> FloorPlanResult<()> {
     for container in r.children.clone() {
@@ -179,8 +179,8 @@ fn create_container_room(
     namespace: &str,
     r: &IntegrationResource,
     container: &IntegrationResource,
-) -> RoomData {
-    RoomData {
+) -> Room {
+    Room {
         id: format!("{namespace}-{}-{}-{}", r.kind, "container", container.name),
         name: format!("{} {}", "container", container.name),
     }
@@ -191,7 +191,7 @@ fn add_volume_mount_rooms(
     namespace: &str,
     r: &IntegrationResource,
     container: &IntegrationResource,
-    container_room: &RoomData,
+    container_room: &Room,
     door_id_generator: &mut usize,
 ) -> FloorPlanResult<()> {
     for volume_mount in container.children.clone() {
@@ -207,8 +207,8 @@ fn create_volume_mount_room(
     r: &IntegrationResource,
     container: &IntegrationResource,
     volume_mount: &IntegrationResource,
-) -> RoomData {
-    RoomData {
+) -> Room {
+    Room {
         id: format!(
             "{namespace}-{}-{}-{}-{}",
             r.kind, "container", container.name, volume_mount.name

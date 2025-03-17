@@ -5,8 +5,6 @@ use bevy::{
 };
 use petgraph::prelude::*;
 
-use super::world_component::{Door, Room};
-
 pub fn handle_floor_plan_event(
     mut commands: Commands,
     mut events: EventReader<FloorPlanEvent>,
@@ -18,7 +16,7 @@ pub fn handle_floor_plan_event(
 
         // Visualize Rooms
         for node_index in floorplan.graph.node_indices() {
-            if let Some(_room_data) = floorplan.graph.node_weight(node_index) {
+            if let Some(room) = floorplan.graph.node_weight(node_index) {
                 let position = calculate_room_position(node_index);
 
                 let shape = meshes.add(Cuboid::new(4.0, 1.5, 4.0));
@@ -27,7 +25,7 @@ pub fn handle_floor_plan_event(
                     Mesh3d(shape),
                     MeshMaterial3d(mat),
                     Transform::from_translation(position),
-                    Room, // Marker component
+                    room.clone(),
                 ));
             }
         }
@@ -50,10 +48,7 @@ pub fn handle_floor_plan_event(
                     rotation: Quat::from_rotation_y(direction.z.atan2(direction.x)),
                     ..default()
                 },
-                Door {
-                    from: edge.source(),
-                    to: edge.target(),
-                }, // Marker component,
+                edge.weight().clone(),
             ));
         }
     }
