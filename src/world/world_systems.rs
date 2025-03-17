@@ -1,19 +1,50 @@
-use crate::floorplan::FloorPlanEvent;
+use crate::{floorplan::FloorPlanEvent, state::GameState};
 use bevy::{
     color::palettes::tailwind::{GRAY_600, RED_500},
     prelude::*,
 };
 use petgraph::prelude::*;
 
+use super::world_component::CurrentFloorPlan;
+
 pub fn handle_floor_plan_event(
-    mut commands: Commands,
     mut events: EventReader<FloorPlanEvent>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut current_floorplan: ResMut<CurrentFloorPlan>,
+    time: Res<Time>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
+    let mut should_transition = false;
     for event in events.read() {
         let floorplan = &event.floorplan;
+        debug!("Handling floorplan event");
 
+        if current_floorplan.floorplan.as_ref() != Some(floorplan) {
+            debug!("Floorplan changed");
+            *current_floorplan = CurrentFloorPlan {
+                floorplan: Some(floorplan.clone()),
+                refreshed: time.elapsed(),
+                modified: time.elapsed(),
+                you_are_here: None,
+                you_were_here: None,
+            };
+            should_transition = true;
+        }
+    }
+    if should_transition {
+        debug!("Transitioning");
+        next_state.set(GameState::Transitioning);
+    }
+}
+
+pub fn spawn_world(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    current_floorplan: ResMut<CurrentFloorPlan>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    debug!("Spawning world");
+    if let Some(floorplan) = &current_floorplan.floorplan {
         // Visualize Rooms
         for node_index in floorplan.graph.node_indices() {
             if let Some(room) = floorplan.graph.node_weight(node_index) {
@@ -51,6 +82,8 @@ pub fn handle_floor_plan_event(
                 edge.weight().clone(),
             ));
         }
+
+        next_state.set(GameState::InGame);
     }
 }
 
