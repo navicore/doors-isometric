@@ -7,6 +7,7 @@ use petgraph::prelude::*;
 
 use super::world_component::CurrentFloorPlan;
 
+#[allow(clippy::cognitive_complexity)]
 pub fn handle_floor_plan_event(
     mut events: EventReader<FloorPlanEvent>,
     mut current_floorplan: ResMut<CurrentFloorPlan>,
@@ -20,12 +21,20 @@ pub fn handle_floor_plan_event(
 
         if current_floorplan.floorplan.as_ref() != Some(floorplan) {
             debug!("Floorplan changed");
+            let mut you_are_here = current_floorplan.you_are_here.clone();
+            if you_are_here.is_none() {
+                if let Ok(start_room) = floorplan.get_start_room() {
+                    you_are_here = Some(start_room.clone());
+                }
+            }
+            let you_were_here = current_floorplan.you_are_here.clone();
+
             *current_floorplan = CurrentFloorPlan {
                 floorplan: Some(floorplan.clone()),
                 refreshed: time.elapsed(),
                 modified: time.elapsed(),
-                you_are_here: None,
-                you_were_here: None,
+                you_are_here,
+                you_were_here,
             };
             should_transition = true;
         }
