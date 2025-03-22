@@ -1,4 +1,6 @@
+use super::perf_component::RoomName;
 use super::perf_component::SystemMonitor;
+use super::perf_component::TimeInRoom;
 use bevy::prelude::*;
 use iyes_perf_ui::prelude::PerfUiAllEntries;
 use iyes_perf_ui::prelude::PerfUiPosition;
@@ -42,6 +44,8 @@ pub fn toggle_customs(
                 WorldEdgeCount::default(),
                 TimeSinceLastFloorplanRefresh::default(),
                 TimeSinceLastFloorplanModified::default(),
+                TimeInRoom::default(),
+                RoomName::default(),
             ));
         }
     }

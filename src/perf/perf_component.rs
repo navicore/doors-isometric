@@ -288,3 +288,117 @@ impl PerfUiEntry for TimeSinceLastFloorplanModified {
             .is_some_and(|t| (*value as f32) > t)
     }
 }
+
+#[derive(Component)]
+#[require(PerfUiRoot)]
+pub struct TimeInRoom {
+    pub display_units: bool,
+    pub threshold_highlight: Option<f32>,
+    pub color_gradient: ColorGradient,
+    pub digits: u8,
+    pub precision: u8,
+    pub sort_key: i32,
+}
+
+impl Default for TimeInRoom {
+    fn default() -> Self {
+        Self {
+            display_units: true,
+            threshold_highlight: Some(800.0),
+            #[allow(clippy::unwrap_used)]
+            color_gradient: ColorGradient::new_preset_gyr(60.0, 120.0, 800.0).unwrap(),
+            digits: 3,
+            precision: 2,
+            sort_key: iyes_perf_ui::utils::next_sort_key(),
+        }
+    }
+}
+
+impl PerfUiEntry for TimeInRoom {
+    type Value = f64;
+    type SystemParam = (SRes<Time>, SRes<CurrentFloorPlan>);
+
+    fn label(&self) -> &'static str {
+        "Time in Room"
+    }
+
+    fn sort_key(&self) -> i32 {
+        self.sort_key
+    }
+
+    fn update_value(
+        &self,
+        (time, plan): &mut <Self::SystemParam as SystemParam>::Item<'_, '_>,
+    ) -> Option<Self::Value> {
+        let d = time.elapsed() - plan.modified;
+        Some(d.as_secs_f64())
+    }
+
+    fn format_value(&self, value: &Self::Value) -> String {
+        let mut s = iyes_perf_ui::utils::format_pretty_float(self.digits, self.precision, *value);
+        if self.display_units {
+            s.push_str(" s");
+        }
+        s
+    }
+
+    fn value_color(&self, value: &Self::Value) -> Option<Color> {
+        #[allow(clippy::cast_possible_truncation)]
+        self.color_gradient.get_color_for_value(*value as f32)
+    }
+
+    fn value_highlight(&self, value: &Self::Value) -> bool {
+        #[allow(clippy::cast_possible_truncation)]
+        self.threshold_highlight
+            .is_some_and(|t| (*value as f32) > t)
+    }
+}
+
+#[derive(Component)]
+#[require(PerfUiRoot)]
+pub struct RoomName {
+    pub sort_key: i32,
+}
+
+impl Default for RoomName {
+    fn default() -> Self {
+        Self {
+            sort_key: iyes_perf_ui::utils::next_sort_key(),
+        }
+    }
+}
+
+impl PerfUiEntry for RoomName {
+    type Value = String;
+    type SystemParam = SRes<CurrentFloorPlan>;
+
+    fn label(&self) -> &'static str {
+        "Room Name"
+    }
+
+    fn sort_key(&self) -> i32 {
+        self.sort_key
+    }
+
+    fn update_value(
+        &self,
+        plan: &mut <Self::SystemParam as SystemParam>::Item<'_, '_>,
+    ) -> Option<Self::Value> {
+        if let Some(name) = &plan.you_are_here {
+            return Some(name.name.clone());
+        }
+        None
+    }
+
+    fn format_value(&self, value: &Self::Value) -> String {
+        value.to_string()
+    }
+
+    fn value_color(&self, _value: &Self::Value) -> Option<Color> {
+        None
+    }
+
+    fn value_highlight(&self, _value: &Self::Value) -> bool {
+        false
+    }
+}

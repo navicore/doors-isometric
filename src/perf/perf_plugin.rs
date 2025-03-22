@@ -1,4 +1,6 @@
-use super::perf_component::{TimeSinceLastFloorplanModified, TimeSinceLastFloorplanRefresh};
+use super::perf_component::{
+    RoomName, TimeInRoom, TimeSinceLastFloorplanModified, TimeSinceLastFloorplanRefresh,
+};
 use super::perf_system::{toggle_builtins, toggle_customs};
 use super::{WorldEdgeCount, WorldNodeCount};
 use bevy::diagnostic::{
@@ -21,6 +23,8 @@ impl Plugin for PerfPlugin {
         .add_perf_ui_simple_entry::<WorldEdgeCount>()
         .add_perf_ui_simple_entry::<TimeSinceLastFloorplanRefresh>()
         .add_perf_ui_simple_entry::<TimeSinceLastFloorplanModified>()
+        .add_perf_ui_simple_entry::<TimeInRoom>()
+        .add_perf_ui_simple_entry::<RoomName>()
         .add_plugins(PerfUiPlugin)
         .add_systems(
             Update,
