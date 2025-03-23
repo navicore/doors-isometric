@@ -1,5 +1,6 @@
 use super::perf_component::{
-    RoomName, TimeInRoom, TimeSinceLastFloorplanModified, TimeSinceLastFloorplanRefresh,
+    PlayerIsGrounded, RoomName, TimeInRoom, TimeSinceLastFloorplanModified,
+    TimeSinceLastFloorplanRefresh,
 };
 use super::perf_system::{toggle_builtins, toggle_customs};
 use super::{WorldEdgeCount, WorldNodeCount};
@@ -13,26 +14,27 @@ use iyes_perf_ui::prelude::*;
 pub struct PerfPlugin;
 impl Plugin for PerfPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
-            FrameTimeDiagnosticsPlugin,
-            EntityCountDiagnosticsPlugin,
-            SystemInformationDiagnosticsPlugin, // does not work with dynamic linking
-            RenderDiagnosticsPlugin,
-        ))
-        .add_perf_ui_simple_entry::<WorldNodeCount>()
-        .add_perf_ui_simple_entry::<WorldEdgeCount>()
-        .add_perf_ui_simple_entry::<TimeSinceLastFloorplanRefresh>()
-        .add_perf_ui_simple_entry::<TimeSinceLastFloorplanModified>()
-        .add_perf_ui_simple_entry::<TimeInRoom>()
-        .add_perf_ui_simple_entry::<RoomName>()
-        .add_plugins(PerfUiPlugin)
-        .add_systems(
-            Update,
-            toggle_builtins.before(iyes_perf_ui::PerfUiSet::Setup),
-        )
-        .add_systems(
-            Update,
-            toggle_customs.before(iyes_perf_ui::PerfUiSet::Setup),
-        );
+        app.add_plugins(PerfUiPlugin)
+            .add_plugins((
+                FrameTimeDiagnosticsPlugin,
+                EntityCountDiagnosticsPlugin,
+                SystemInformationDiagnosticsPlugin, // does not work with dynamic linking
+                RenderDiagnosticsPlugin,
+            ))
+            .add_systems(
+                Update,
+                toggle_builtins.before(iyes_perf_ui::PerfUiSet::Setup),
+            )
+            .add_perf_ui_simple_entry::<WorldNodeCount>()
+            .add_perf_ui_simple_entry::<WorldEdgeCount>()
+            .add_perf_ui_simple_entry::<TimeSinceLastFloorplanRefresh>()
+            .add_perf_ui_simple_entry::<TimeSinceLastFloorplanModified>()
+            .add_perf_ui_simple_entry::<TimeInRoom>()
+            .add_perf_ui_simple_entry::<RoomName>()
+            .add_perf_ui_simple_entry::<PlayerIsGrounded>()
+            .add_systems(
+                Update,
+                toggle_customs.before(iyes_perf_ui::PerfUiSet::Setup),
+            );
     }
 }

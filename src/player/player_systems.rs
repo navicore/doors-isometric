@@ -1,6 +1,8 @@
+use crate::floorplan::Room;
+
 use super::player_component::{
-    Action, Grounded, Player, PlayerBundle, PlayerDirection, PlayerState, PLAYER_SHAPE_X,
-    PLAYER_SHAPE_Y, PLAYER_SHAPE_Z,
+    Action, Grounded, GroundedState, Movable, Player, PlayerBundle, PlayerDirection, PlayerState,
+    PLAYER_SHAPE_X, PLAYER_SHAPE_Y, PLAYER_SHAPE_Z,
 };
 use avian3d::prelude::*;
 use bevy::{color::palettes::tailwind::BLUE_600, prelude::*};
@@ -89,6 +91,46 @@ pub fn player_movement(
 
         if !pressed {
             player.state = PlayerState::Stand;
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+pub fn check_grounded(
+    mut collision_events: EventReader<Collision>,
+    mut query: Query<(Entity, &mut Grounded, &Transform), With<Movable>>,
+    mut grounded_state: ResMut<GroundedState>,
+    platform_query: Query<(Entity, &Transform), (With<Room>, Without<Movable>)>, // Query for platforms
+) {
+    let player_entities: Vec<Entity> = query.iter().map(|(entity, _, _)| entity).collect();
+
+    for (_, mut grounded, player_transform) in &mut query {
+        grounded.0 = false; // Reset grounded state each frame
+        grounded_state.0 = false; // Reset grounded state each frame
+
+        for collision in collision_events.read() {
+            let contacts = &collision.0;
+
+            if contacts.is_sensor {
+                continue;
+            }
+
+            let involved_entities = [contacts.entity1, contacts.entity2];
+            if !involved_entities
+                .iter()
+                .any(|e| player_entities.contains(e))
+            {
+                continue;
+            }
+
+            for entity in &involved_entities {
+                if let Ok((_, room_transform)) = platform_query.get(*entity) {
+                    if player_transform.translation.y > room_transform.translation.y {
+                        grounded.0 = true;
+                        grounded_state.0 = true;
+                    }
+                }
+            }
         }
     }
 }

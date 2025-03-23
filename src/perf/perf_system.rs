@@ -1,3 +1,4 @@
+use super::perf_component::PlayerIsGrounded;
 use super::perf_component::RoomName;
 use super::perf_component::SystemMonitor;
 use super::perf_component::TimeInRoom;
@@ -46,6 +47,7 @@ pub fn toggle_customs(
                 TimeSinceLastFloorplanModified::default(),
                 TimeInRoom::default(),
                 RoomName::default(),
+                PlayerIsGrounded::default(),
             ));
         }
     }
