@@ -1,3 +1,4 @@
+use avian3d::PhysicsPlugins;
 use bevy_embedded_assets::{EmbeddedAssetPlugin, PluginMode};
 use bevy_tokio_tasks::TokioTasksPlugin;
 use floorplan::FloorPlanEvent;
@@ -8,12 +9,14 @@ use camera::IsometricCameraPlugin;
 use clap::Parser;
 #[cfg(feature = "perfmon")]
 use perf::PerfPlugin;
+use player::PlayerPlugin;
 use state::StatePlugin;
 use world::WorldPlugin;
 mod camera;
 mod cli;
 mod floorplan;
 mod perf;
+mod player;
 mod state;
 mod world;
 
@@ -27,6 +30,7 @@ fn main() {
                 mode: PluginMode::ReplaceDefault,
             },
             DefaultPlugins,
+            PhysicsPlugins::default(),
             TokioTasksPlugin::default(),
             IsometricCameraPlugin,
             IntegrationPlugin,
@@ -34,6 +38,7 @@ fn main() {
             #[cfg(feature = "perfmon")]
             PerfPlugin,
             StatePlugin,
+            PlayerPlugin,
             //InputManagerPlugin::<Action>::default(),
         ))
         .run();
