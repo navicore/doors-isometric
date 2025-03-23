@@ -90,6 +90,9 @@ impl PlayerBundle {
 #[derive(Component)]
 pub struct Grounded(pub bool);
 
+#[derive(Default, Resource)]
+pub struct GroundedState(pub bool);
+
 #[derive(Component)]
 pub struct Movable;
 
