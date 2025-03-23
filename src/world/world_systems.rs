@@ -104,6 +104,7 @@ pub fn spawn_world(
                     MeshMaterial3d(mat),
                     Transform::from_translation(position),
                     room.clone(),
+                    RigidBody::Static,
                     collider, // Add collider to the room
                 ));
             }

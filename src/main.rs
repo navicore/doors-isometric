@@ -1,3 +1,4 @@
+use avian3d::PhysicsPlugins;
 use bevy_embedded_assets::{EmbeddedAssetPlugin, PluginMode};
 use bevy_tokio_tasks::TokioTasksPlugin;
 use floorplan::FloorPlanEvent;
@@ -29,6 +30,7 @@ fn main() {
                 mode: PluginMode::ReplaceDefault,
             },
             DefaultPlugins,
+            PhysicsPlugins::default(),
             TokioTasksPlugin::default(),
             IsometricCameraPlugin,
             IntegrationPlugin,
