@@ -1,8 +1,25 @@
 use crate::{floorplan::FloorPlanEvent, state::GameState};
-use bevy::{color::palettes::tailwind::GRAY_600, prelude::*};
+use bevy::{
+    color::palettes::tailwind::{
+        BLUE_600, GRAY_600, GREEN_600, ORANGE_600, PURPLE_600, RED_600, YELLOW_600,
+    },
+    prelude::*,
+};
 use petgraph::prelude::*;
 
 use super::world_component::CurrentFloorPlan;
+
+fn calculate_room_color(name: &str) -> Srgba {
+    match name {
+        n if n.contains("Deployment") => PURPLE_600,
+        n if n.contains("ReplicaSet") => ORANGE_600,
+        n if n.contains("Pod") => RED_600,
+        n if n.contains("Service") => BLUE_600,
+        n if n.contains("CofnigMap") => YELLOW_600,
+        n if n.contains("Hallway") => GREEN_600,
+        _ => GRAY_600,
+    }
+}
 
 #[allow(clippy::cognitive_complexity)]
 pub fn handle_floor_plan_event(
@@ -51,6 +68,43 @@ pub fn spawn_world(
 ) {
     debug!("Spawning world");
     if let Some(floorplan) = &current_floorplan.floorplan {
+        // make a vec of the current room's connected room node_index
+        let mut connected_room_node_index = Vec::new();
+        if let Some(current_room) = &current_floorplan.you_are_here {
+            if let Ok(entries) = &floorplan.get_doors_and_connected_rooms(&current_room.id) {
+                for (_door, room) in entries {
+                    if let Ok(node_index) = floorplan.get_room_idx_by_id(&room.id) {
+                        connected_room_node_index.push(node_index);
+                    }
+                }
+            }
+        }
+        // Visualize Rooms
+        for node_index in floorplan.graph.node_indices() {
+            if let Some(room) = floorplan.graph.node_weight(node_index) {
+                let (shape, mat, position) = if connected_room_node_index.contains(&node_index) {
+                    (
+                        meshes.add(Cuboid::new(4.0, 2.0, 4.0)),
+                        materials.add(Color::from(calculate_room_color(&room.name))),
+                        calculate_room_position(node_index, 0.8),
+                    )
+                } else {
+                    (
+                        meshes.add(Cuboid::new(4.0, 0.1, 4.0)),
+                        materials.add(Color::from(GRAY_600)),
+                        calculate_room_position(node_index, 0.0),
+                    )
+                };
+
+                commands.spawn((
+                    Mesh3d(shape),
+                    MeshMaterial3d(mat),
+                    Transform::from_translation(position),
+                    room.clone(),
+                ));
+            }
+        }
+
         // Visualize Rooms
         // for node_index in floorplan.graph.node_indices() {
         //     if let Some(room) = floorplan.graph.node_weight(node_index) {
@@ -66,23 +120,23 @@ pub fn spawn_world(
         //         ));
         //     }
         // }
-        if let Some(current_room) = &current_floorplan.you_are_here {
-            if let Ok(entries) = &floorplan.get_doors_and_connected_rooms(&current_room.id) {
-                for (_door, room) in entries.iter() {
-                    if let Ok(node_index) = floorplan.get_room_idx_by_id(&room.id) {
-                        let position = calculate_room_position(node_index);
-                        let shape = meshes.add(Cuboid::new(4.0, 1.5, 4.0));
-                        let mat = materials.add(Color::from(GRAY_600));
-                        commands.spawn((
-                            Mesh3d(shape),
-                            MeshMaterial3d(mat),
-                            Transform::from_translation(position),
-                            current_room.clone(),
-                        ));
-                    }
-                }
-            }
-        }
+        // if let Some(current_room) = &current_floorplan.you_are_here {
+        //     if let Ok(entries) = &floorplan.get_doors_and_connected_rooms(&current_room.id) {
+        //         for (_door, room) in entries.iter() {
+        //             if let Ok(node_index) = floorplan.get_room_idx_by_id(&room.id) {
+        //                 let position = calculate_room_position(node_index);
+        //                 let shape = meshes.add(Cuboid::new(4.0, 1.5, 4.0));
+        //                 let mat = materials.add(Color::from(GRAY_600));
+        //                 commands.spawn((
+        //                     Mesh3d(shape),
+        //                     MeshMaterial3d(mat),
+        //                     Transform::from_translation(position),
+        //                     current_room.clone(),
+        //                 ));
+        //             }
+        //         }
+        //     }
+        // }
 
         // Visualize Doors (Edges)
         // for edge in floorplan.graph.edge_references() {
@@ -111,10 +165,10 @@ pub fn spawn_world(
 }
 
 #[allow(clippy::cast_precision_loss)]
-fn calculate_room_position(index: NodeIndex) -> Vec3 {
+fn calculate_room_position(index: NodeIndex, yoffset: f32) -> Vec3 {
     // For simplicity, arrange rooms in a grid pattern
-    let spacing = 6.0;
+    let spacing = 5.0;
     let x = (index.index() % 5) as f32 * spacing;
     let z = (index.index() / 5) as f32 * spacing; // adjust 'spacing' as needed
-    Vec3::new(x, 0.0, z)
+    Vec3::new(x, 0.0 + yoffset, z)
 }
