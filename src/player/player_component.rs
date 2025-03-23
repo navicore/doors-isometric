@@ -75,7 +75,7 @@ impl PlayerBundle {
             player: Player::default(),
             input_manager: InputManagerBundle::with_map(input_map),
             gravity: GravityScale(PLAYER_GRAVITY_SCALE),
-            mass: Mass(10.0),
+            mass: Mass(2.0),
             friction: Friction {
                 dynamic_coefficient: 0.3,
                 static_coefficient: 0.5,

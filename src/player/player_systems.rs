@@ -81,7 +81,11 @@ pub fn player_movement(
             direction = direction.normalize();
         }
 
-        force.apply_force(direction * player.walk_speed); // Adjust force magnitude as needed
+        if pressed {
+            force.apply_force(direction * player.walk_speed); // Adjust force magnitude as needed
+        } else {
+            force.set_force(Vec3::ZERO);
+        }
 
         if !pressed {
             player.state = PlayerState::Stand;
