@@ -1,8 +1,8 @@
 use crate::floorplan::Room;
 
 use super::player_component::{
-    Action, Grounded, GroundedState, Movable, Player, PlayerBundle, PlayerDirection, PlayerState,
-    PLAYER_SHAPE_X, PLAYER_SHAPE_Y, PLAYER_SHAPE_Z,
+    Action, Grounded, GroundedState, Player, PlayerBundle, PlayerDirection, PlayerState,
+    PLAYER_JUMP_FORCE, PLAYER_SHAPE_X, PLAYER_SHAPE_Y, PLAYER_SHAPE_Z,
 };
 use avian3d::prelude::*;
 use bevy::{color::palettes::tailwind::BLUE_600, prelude::*};
@@ -36,10 +36,6 @@ pub fn player_movement(
     >,
 ) {
     if let Ok((mut force, grounded, action_state, mut player)) = query.get_single_mut() {
-        if !grounded.0 {
-            debug!("Player is not grounded");
-        }
-
         let mut direction = Vec3::ZERO;
 
         let mut pressed = if action_state.pressed(&Action::MoveForward) {
@@ -78,12 +74,18 @@ pub fn player_movement(
             pressed
         };
 
-        // Normalize direction and apply force
-        if direction != Vec3::ZERO {
-            direction = direction.normalize();
-        }
+        pressed = if action_state.pressed(&Action::Jump) {
+            direction.x += 0.0;
+            direction.y += PLAYER_JUMP_FORCE;
+            direction.z += 0.0;
+            player.direction = PlayerDirection::Up; // ?
+            player.state = PlayerState::Jump;
+            true
+        } else {
+            pressed
+        };
 
-        if pressed {
+        if pressed && grounded.0 {
             force.apply_force(direction * player.walk_speed); // Adjust force magnitude as needed
         } else {
             force.set_force(Vec3::ZERO);
@@ -98,16 +100,15 @@ pub fn player_movement(
 #[allow(clippy::type_complexity)]
 pub fn check_grounded(
     mut collision_events: EventReader<Collision>,
-    mut query: Query<(Entity, &mut Grounded, &Transform), With<Movable>>,
     mut grounded_state: ResMut<GroundedState>,
-    platform_query: Query<(Entity, &Transform), (With<Room>, Without<Movable>)>, // Query for platforms
+    mut query: Query<(Entity, &mut Grounded, &Transform), With<Player>>,
+    platform_query: Query<(Entity, &Transform), (With<Room>, Without<Player>)>, // Query for platforms
 ) {
     let player_entities: Vec<Entity> = query.iter().map(|(entity, _, _)| entity).collect();
 
-    for (_, mut grounded, player_transform) in &mut query {
-        grounded.0 = false; // Reset grounded state each frame
-        grounded_state.0 = false; // Reset grounded state each frame
+    let mut t_grounded = false;
 
+    if let Ok((_, grounded, player_transform)) = &mut query.get_single_mut() {
         for collision in collision_events.read() {
             let contacts = &collision.0;
 
@@ -126,11 +127,12 @@ pub fn check_grounded(
             for entity in &involved_entities {
                 if let Ok((_, room_transform)) = platform_query.get(*entity) {
                     if player_transform.translation.y > room_transform.translation.y {
-                        grounded.0 = true;
-                        grounded_state.0 = true;
+                        t_grounded = true;
                     }
                 }
             }
         }
+        grounded.0 = t_grounded;
     }
+    grounded_state.0 = t_grounded;
 }

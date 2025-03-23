@@ -13,6 +13,9 @@ impl Plugin for PlayerPlugin {
         app.insert_resource(GroundedState::default())
             .add_plugins(InputManagerPlugin::<Action>::default())
             .add_systems(Startup, spawn_player)
-            .add_systems(Update, (check_grounded, player_movement).chain());
+            .add_systems(
+                Update,
+                (player_movement.after(check_grounded), check_grounded),
+            );
     }
 }

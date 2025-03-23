@@ -4,14 +4,15 @@ use bevy::reflect::Reflect;
 use leafwing_input_manager::{prelude::InputMap, Actionlike, InputManagerBundle};
 
 // Define movement constants
-const PLAYER_MOVE_SPEED: f32 = 2.0; // Horizontal movement speed
+const PLAYER_WALK_SPEED: f32 = 2.0; // Horizontal movement speed
 
 pub const PLAYER_SHAPE_X: f32 = 1.2;
-pub const PLAYER_SHAPE_Y: f32 = 2.0;
+pub const PLAYER_SHAPE_Y: f32 = 1.8;
 pub const PLAYER_SHAPE_Z: f32 = 1.2;
 
-//pub const PLAYER_JUMP_FORCE: f32 = 25000.0; // Jump force applied when pressing space
-pub const PLAYER_GRAVITY_SCALE: f32 = 2.0; // Gravity multiplier for falling speed
+const PLAYER_MASS: f32 = 4.0;
+pub const PLAYER_JUMP_FORCE: f32 = 150.0; // Jump force applied when pressing space
+pub const PLAYER_GRAVITY_SCALE: f32 = 2.5; // Gravity multiplier for falling speed
 
 #[derive(Actionlike, PartialEq, Eq, Hash, Clone, Copy, Debug, Reflect)]
 pub enum Action {
@@ -33,7 +34,7 @@ pub struct Player {
 impl Player {
     pub const fn default() -> Self {
         Self {
-            walk_speed: PLAYER_MOVE_SPEED,
+            walk_speed: PLAYER_WALK_SPEED,
             state: PlayerState::Stand,
             direction: PlayerDirection::Up,
         }
@@ -75,8 +76,9 @@ impl PlayerBundle {
             player: Player::default(),
             input_manager: InputManagerBundle::with_map(input_map),
             gravity: GravityScale(PLAYER_GRAVITY_SCALE),
-            mass: Mass(2.0),
+            mass: Mass(PLAYER_MASS),
             friction: Friction {
+                // TODO: tune
                 dynamic_coefficient: 0.3,
                 static_coefficient: 0.5,
                 combine_rule: CoefficientCombine::Average,
@@ -100,7 +102,7 @@ pub struct Movable;
 pub enum PlayerState {
     Walk,
     Stand,
-    //Jump,
+    Jump,
     //Fall,
 }
 
