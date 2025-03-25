@@ -1,7 +1,16 @@
-use crate::player::{player_component::GroundedState, Player};
+use crate::player::Player;
 
 use super::camera_component::MainCamera;
 use bevy::prelude::*;
+
+pub const WINDOW_WIDTH: f32 = 1200.0;
+pub const WINDOW_HEIGHT: f32 = 800.0;
+
+const CAMERA_MOVE_SPEED: f32 = 100.0; // Speed at which the camera moves
+const SCREEN_HALF_WIDTH: f32 = WINDOW_WIDTH / 2.0; // Half of window width (assuming 1200x800 resolution)
+const SCREEN_HALF_HEIGHT: f32 = WINDOW_HEIGHT / 2.0; // Half of window width (assuming 1200x800 resolution)
+const SCROLL_THRESHOLD_XY: f32 = 400.0; // Distance from the screen edge before scrolling
+const SCROLL_THRESHOLD_Z: f32 = 200.0; // Distance from the screen edge before scrolling
 
 pub fn setup_camera(mut commands: Commands) {
     // Standard isometric angles: rotated 45° horizontally, ~35.26° vertically
@@ -26,40 +35,41 @@ pub fn setup_camera(mut commands: Commands) {
     ));
 }
 
-// TODO: BUT! jerky movement when the camera follows once the player lands
 #[allow(clippy::type_complexity)]
 pub fn follow_player(
-    time: Res<Time>,
-    grounded_state: Res<GroundedState>,
-    mut query_set: ParamSet<(
-        Query<(&mut Transform, &MainCamera)>,
+    mut param_set: ParamSet<(
         Query<&Transform, With<Player>>,
+        Query<&mut Transform, With<MainCamera>>,
     )>,
 ) {
-    if !grounded_state.0 {
-        return; // Stop following if the player is not grounded
-    }
+    let player_position = if let Ok(player_transform) = param_set.p0().get_single() {
+        player_transform.translation
+    } else {
+        return;
+    };
 
-    if let Ok(player_transform) = query_set.p1().get_single() {
-        let player_position = player_transform.translation;
+    // TODO debug this - camera is not moving except after the player falls off the end then it
+    // lurches forward in steps that eventually overshoot the platform.
+    if let Ok(mut camera_transform) = param_set.p1().get_single_mut() {
+        let camera_x = camera_transform.translation.x;
+        let camera_z = camera_transform.translation.z;
 
-        for (mut camera_transform, _) in &mut query_set.p0() {
-            // Calculate the target position for the camera, adjusting only the z-axis
-            let isometric_offset = Vec3::new(-20.0, 20.0, -20.0);
-            let target_position = Vec3::new(
-                camera_transform.translation.x,         // Keep x steady
-                camera_transform.translation.y,         // Keep y steady
-                player_position.z + isometric_offset.z, // Adjust z-axis to follow the player
-            );
+        // If player is near the right edge of the screen
+        if player_position.x > camera_x + SCREEN_HALF_WIDTH - SCROLL_THRESHOLD_XY {
+            camera_transform.translation.x += CAMERA_MOVE_SPEED;
+        }
+        // If player is near the left edge of the screen
+        if player_position.x < camera_x - SCREEN_HALF_WIDTH + SCROLL_THRESHOLD_XY {
+            camera_transform.translation.x -= CAMERA_MOVE_SPEED;
+        }
 
-            // Smoothly interpolate the camera's position toward the target position
-            let interpolation_speed = 2.0; // Adjust for smoothness
-            camera_transform.translation = camera_transform
-                .translation
-                .lerp(target_position, interpolation_speed * time.delta_secs());
-
-            // Ensure the camera keeps looking at the player
-            camera_transform.look_at(player_position, Vec3::Y);
+        // If player is near the top edge of the screen
+        if player_position.z > camera_z + SCREEN_HALF_HEIGHT - SCROLL_THRESHOLD_Z {
+            camera_transform.translation.z += CAMERA_MOVE_SPEED;
+        }
+        // If player is near the bottom edge of the screen
+        if player_position.z < camera_z - SCREEN_HALF_HEIGHT + SCROLL_THRESHOLD_Z {
+            camera_transform.translation.z -= CAMERA_MOVE_SPEED;
         }
     }
 }
