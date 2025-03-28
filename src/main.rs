@@ -39,7 +39,6 @@ fn main() {
             PerfPlugin,
             StatePlugin,
             PlayerPlugin,
-            //InputManagerPlugin::<Action>::default(),
         ))
         .run();
 }
