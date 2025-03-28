@@ -1,4 +1,4 @@
-use crate::player::{player_component::GroundedState, Player};
+use crate::player::Player;
 
 use super::camera_component::MainCamera;
 use bevy::prelude::*;
@@ -26,40 +26,22 @@ pub fn setup_camera(mut commands: Commands) {
     ));
 }
 
-// TODO: BUT! jerky movement when the camera follows once the player lands
 #[allow(clippy::type_complexity)]
 pub fn follow_player(
-    time: Res<Time>,
-    grounded_state: Res<GroundedState>,
-    mut query_set: ParamSet<(
-        Query<(&mut Transform, &MainCamera)>,
+    mut param_set: ParamSet<(
         Query<&Transform, With<Player>>,
+        Query<&mut Transform, With<MainCamera>>,
     )>,
 ) {
-    if !grounded_state.0 {
-        return; // Stop following if the player is not grounded
-    }
+    let player_position = if let Ok(player_transform) = param_set.p0().get_single() {
+        player_transform.translation
+    } else {
+        return;
+    };
 
-    if let Ok(player_transform) = query_set.p1().get_single() {
-        let player_position = player_transform.translation;
-
-        for (mut camera_transform, _) in &mut query_set.p0() {
-            // Calculate the target position for the camera, adjusting only the z-axis
-            let isometric_offset = Vec3::new(-20.0, 20.0, -20.0);
-            let target_position = Vec3::new(
-                camera_transform.translation.x,         // Keep x steady
-                camera_transform.translation.y,         // Keep y steady
-                player_position.z + isometric_offset.z, // Adjust z-axis to follow the player
-            );
-
-            // Smoothly interpolate the camera's position toward the target position
-            let interpolation_speed = 2.0; // Adjust for smoothness
-            camera_transform.translation = camera_transform
-                .translation
-                .lerp(target_position, interpolation_speed * time.delta_secs());
-
-            // Ensure the camera keeps looking at the player
-            camera_transform.look_at(player_position, Vec3::Y);
-        }
+    if let Ok(mut camera_transform) = param_set.p1().get_single_mut() {
+        camera_transform.translation.z = player_position.z - 10.0;
+        // todo it would be better to only move the camera as the player approached the edge of the
+        // screen and then smoothly recenter
     }
 }

@@ -139,7 +139,8 @@ pub fn spawn_world(
 #[allow(clippy::cast_precision_loss)]
 fn calculate_room_position(index: NodeIndex, yoffset: f32) -> Vec3 {
     // For simplicity, arrange rooms in a grid pattern
-    let spacing = 5.0;
+    //let spacing = 5.0;
+    let spacing = 4.2;
     let x = (index.index() % 5) as f32 * spacing;
     let z = (index.index() / 5) as f32 * spacing; // adjust 'spacing' as needed
     Vec3::new(x, 0.0 + yoffset, z)
