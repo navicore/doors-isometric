@@ -1,3 +1,5 @@
+[![Dependabot Updates](https://github.com/navicore/doors-isometric/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/navicore/doors-isometric/actions/workflows/dependabot/dependabot-updates) [![Rust](https://github.com/navicore/doors-isometric/actions/workflows/rust.yml/badge.svg)](https://github.com/navicore/doors-isometric/actions/workflows/rust.yml) [![rust-clippy analyze](https://github.com/navicore/doors-isometric/actions/workflows/rust-clippy.yml/badge.svg)](https://github.com/navicore/doors-isometric/actions/workflows/rust-clippy.yml)
+
 Doors Isometric
 ================
 
