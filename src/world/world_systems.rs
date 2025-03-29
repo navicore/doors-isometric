@@ -1,4 +1,4 @@
-use super::world_component::{CurrentFloorPlan, Floor, PlatformSurface};
+use super::world_component::{CurrentFloorPlan, Floor, PlatformMarker};
 use crate::{
     floorplan::{FloorPlan, FloorPlanEvent, Room},
     state::GameState,
@@ -11,6 +11,15 @@ use bevy::{
     prelude::*,
 };
 use petgraph::prelude::*;
+
+const ROOM_X_LEN: f32 = 4.0;
+const ROOM_Y_LEN: f32 = 4.0;
+const ROOM_Z_LEN: f32 = 4.0;
+const PLACEHOLDER_Y_LEN: f32 = 0.1;
+
+const FLOOR_THICKNESS: f32 = 0.5;
+const N_ROWS: usize = 5;
+const SPACING: f32 = 8.0;
 
 fn calculate_room_color(name: &str) -> Srgba {
     match name {
@@ -151,10 +160,10 @@ fn spawn_connected_room(
 ) {
     debug!("Spawning connected room");
 
-    let shape = meshes.add(Cuboid::new(4.0, 4.0, 4.0));
+    let shape = meshes.add(Cuboid::new(ROOM_X_LEN, ROOM_Y_LEN, ROOM_Z_LEN));
     let mat = materials.add(Color::from(calculate_room_color(&room.name)));
     let position = calculate_room_position(node_index, 1.8);
-    let collider = Collider::cuboid(4.0, 4.0, 4.0);
+    let collider = Collider::cuboid(ROOM_X_LEN, ROOM_Y_LEN, ROOM_Z_LEN);
 
     let door = spawn_connected_room_door(commands, meshes, materials);
 
@@ -166,7 +175,7 @@ fn spawn_connected_room(
             room.clone(),
             RigidBody::Static,
             collider,
-            PlatformSurface::default(),
+            PlatformMarker::default(),
         ))
         .add_child(door);
 }
@@ -178,7 +187,7 @@ fn spawn_connected_room_door(
 ) -> Entity {
     debug!("Spawning connected room door");
 
-    let room_size = 4.0;
+    let room_size = ROOM_Y_LEN;
     let door_size = Vec3::new(2.0, 3.0, 0.1); // Width, height, depth of the door
     let door_position = Vec3::new(0.0, 0.0, -(room_size / 2.0 + door_size.z / 2.0)); // Centered on the front face
 
@@ -201,10 +210,10 @@ fn spawn_unconnected_room(
 ) {
     debug!("Spawning unconnected room");
 
-    let shape = meshes.add(Cuboid::new(4.0, 0.1, 4.0));
+    let shape = meshes.add(Cuboid::new(ROOM_X_LEN, PLACEHOLDER_Y_LEN, ROOM_Z_LEN));
     let mat = materials.add(Color::from(GRAY_600));
     let position = calculate_room_position(node_index, 0.0);
-    let collider = Collider::cuboid(4.0, 0.1, 4.0);
+    let collider = Collider::cuboid(ROOM_X_LEN, PLACEHOLDER_Y_LEN, ROOM_Z_LEN);
 
     commands.spawn((
         Mesh3d(shape),
@@ -213,7 +222,7 @@ fn spawn_unconnected_room(
         room.clone(),
         RigidBody::Static,
         collider,
-        PlatformSurface::default(),
+        PlatformMarker::default(),
     ));
 }
 
@@ -229,7 +238,7 @@ fn spawn_floor(
     let rows = (num_rooms as f32 / columns as f32).ceil();
     let floor_width = columns as f32 * room_spacing;
     let floor_depth = rows * room_spacing;
-    let floor_thickness = 0.5;
+    let floor_thickness = FLOOR_THICKNESS;
 
     let floor_position = Vec3::new(
         (columns as f32 - 1.0) * room_spacing / 2.0,
@@ -244,14 +253,13 @@ fn spawn_floor(
         RigidBody::Static,
         Collider::cuboid(floor_width, floor_thickness, floor_depth),
         Floor::default(),
-        PlatformSurface::default(),
+        PlatformMarker::default(),
     ));
 }
 
 #[allow(clippy::cast_precision_loss)]
 fn calculate_room_position(index: NodeIndex, yoffset: f32) -> Vec3 {
-    let spacing = 8.0;
-    let x = (index.index() % 5) as f32 * spacing;
-    let z = (index.index() / 5) as f32 * spacing; // adjust 'spacing' as needed
+    let x = (index.index() % N_ROWS) as f32 * SPACING;
+    let z = (index.index() / N_ROWS) as f32 * SPACING; // adjust 'spacing' as needed
     Vec3::new(x, 0.0 + yoffset, z)
 }

@@ -1,4 +1,4 @@
-use crate::world::world_component::PlatformSurface;
+use crate::world::world_component::PlatformMarker;
 
 use super::player_component::{
     Action, Grounded, GroundedState, Player, PlayerBundle, PlayerDirection, PlayerState,
@@ -102,7 +102,7 @@ pub fn check_grounded(
     mut collision_events: EventReader<Collision>,
     mut grounded_state: ResMut<GroundedState>,
     mut query: Query<(Entity, &mut Grounded, &Transform), With<Player>>,
-    platform_query: Query<(Entity, &Transform), (With<PlatformSurface>, Without<Player>)>, // Query for platforms
+    platform_query: Query<(Entity, &Transform), (With<PlatformMarker>, Without<Player>)>, // Query for platforms
 ) {
     let player_entities: Vec<Entity> = query.iter().map(|(entity, _, _)| entity).collect();
 

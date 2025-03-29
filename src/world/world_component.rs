@@ -9,7 +9,7 @@ use crate::floorplan::{FloorPlan, Room};
 pub struct WorldPlugin;
 
 #[derive(Component, Default)]
-pub struct PlatformSurface {}
+pub struct PlatformMarker {}
 
 #[derive(Component, Default)]
 pub struct Floor {}
