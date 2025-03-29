@@ -8,6 +8,12 @@ use crate::floorplan::{FloorPlan, Room};
 
 pub struct WorldPlugin;
 
+#[derive(Component, Default)]
+pub struct PlatformSurface {}
+
+#[derive(Component, Default)]
+pub struct Floor {}
+
 #[derive(Default, Resource)]
 pub struct CurrentFloorPlan {
     pub floorplan: Option<FloorPlan>,

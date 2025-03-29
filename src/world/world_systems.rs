@@ -1,4 +1,4 @@
-use super::world_component::CurrentFloorPlan;
+use super::world_component::{CurrentFloorPlan, Floor, PlatformSurface};
 use crate::{
     floorplan::{FloorPlan, FloorPlanEvent, Room},
     state::GameState,
@@ -6,7 +6,7 @@ use crate::{
 use avian3d::prelude::*;
 use bevy::{
     color::palettes::tailwind::{
-        BLUE_600, GRAY_600, GREEN_600, ORANGE_600, PURPLE_600, RED_600, YELLOW_600,
+        BLUE_600, GRAY_500, GRAY_600, GREEN_600, ORANGE_600, PURPLE_600, RED_600, YELLOW_600,
     },
     prelude::*,
 };
@@ -105,6 +105,15 @@ pub fn spawn_world(
             }
         }
 
+        spawn_floor(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            floorplan.graph.node_indices().count(),
+            5,
+            8.0,
+        );
+
         // Visualize Rooms
         for node_index in floorplan.graph.node_indices() {
             if let Some(room) = floorplan.graph.node_weight(node_index) {
@@ -157,6 +166,7 @@ fn spawn_connected_room(
             room.clone(),
             RigidBody::Static,
             collider,
+            PlatformSurface::default(),
         ))
         .add_child(door);
 }
@@ -203,14 +213,44 @@ fn spawn_unconnected_room(
         room.clone(),
         RigidBody::Static,
         collider,
+        PlatformSurface::default(),
+    ));
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn spawn_floor(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    num_rooms: usize,
+    columns: usize,
+    room_spacing: f32,
+) {
+    let rows = (num_rooms as f32 / columns as f32).ceil();
+    let floor_width = columns as f32 * room_spacing;
+    let floor_depth = rows * room_spacing;
+    let floor_thickness = 0.5;
+
+    let floor_position = Vec3::new(
+        (columns as f32 - 1.0) * room_spacing / 2.0,
+        -floor_thickness / 2.0,
+        (rows - 1.0) * room_spacing / 2.0,
+    );
+
+    commands.spawn((
+        Mesh3d(meshes.add(Cuboid::new(floor_width, floor_thickness, floor_depth))),
+        MeshMaterial3d(materials.add(Color::from(GRAY_500))),
+        Transform::from_translation(floor_position),
+        RigidBody::Static,
+        Collider::cuboid(floor_width, floor_thickness, floor_depth),
+        Floor::default(),
+        PlatformSurface::default(),
     ));
 }
 
 #[allow(clippy::cast_precision_loss)]
 fn calculate_room_position(index: NodeIndex, yoffset: f32) -> Vec3 {
-    // For simplicity, arrange rooms in a grid pattern
-    //let spacing = 5.0;
-    let spacing = 4.2;
+    let spacing = 8.0;
     let x = (index.index() % 5) as f32 * spacing;
     let z = (index.index() / 5) as f32 * spacing; // adjust 'spacing' as needed
     Vec3::new(x, 0.0 + yoffset, z)
