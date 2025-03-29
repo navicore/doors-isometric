@@ -1,6 +1,6 @@
 use super::world_component::CurrentFloorPlan;
 use crate::{
-    floorplan::{FloorPlanEvent, Room},
+    floorplan::{FloorPlan, FloorPlanEvent, Room},
     state::GameState,
 };
 use avian3d::prelude::*;
@@ -24,7 +24,6 @@ fn calculate_room_color(name: &str) -> Srgba {
     }
 }
 
-#[allow(clippy::cognitive_complexity)]
 pub fn handle_floor_plan_event(
     mut events: EventReader<FloorPlanEvent>,
     mut current_floorplan: ResMut<CurrentFloorPlan>,
@@ -32,34 +31,57 @@ pub fn handle_floor_plan_event(
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     let mut should_transition = false;
+
     for event in events.read() {
-        let floorplan = &event.floorplan;
-        debug!("Handling floorplan event");
-
-        if current_floorplan.floorplan.as_ref() != Some(floorplan) {
-            debug!("Floorplan changed");
-            let mut you_are_here = current_floorplan.you_are_here.clone();
-            if you_are_here.is_none() {
-                if let Ok(start_room) = floorplan.get_start_room() {
-                    you_are_here = Some(start_room.clone());
-                }
-            }
-            let you_were_here = current_floorplan.you_are_here.clone();
-
-            *current_floorplan = CurrentFloorPlan {
-                floorplan: Some(floorplan.clone()),
-                refreshed: time.elapsed(),
-                modified: time.elapsed(),
-                you_are_here,
-                you_were_here,
-            };
+        if process_floorplan_event(&mut current_floorplan, &event.floorplan, &time) {
             should_transition = true;
         }
     }
+
     if should_transition {
-        debug!("Transitioning");
-        next_state.set(GameState::Transitioning);
+        transition_to_next_state(&mut next_state);
     }
+}
+
+fn process_floorplan_event(
+    current_floorplan: &mut CurrentFloorPlan,
+    floorplan: &FloorPlan,
+    time: &Res<Time>,
+) -> bool {
+    if current_floorplan.floorplan.as_ref() != Some(floorplan) {
+        debug!("Floorplan changed");
+        let you_are_here =
+            determine_you_are_here(current_floorplan.you_are_here.as_ref(), floorplan);
+        let you_were_here = current_floorplan.you_are_here.clone();
+
+        *current_floorplan = CurrentFloorPlan {
+            floorplan: Some(floorplan.clone()),
+            refreshed: time.elapsed(),
+            modified: time.elapsed(),
+            you_are_here,
+            you_were_here,
+        };
+
+        return true;
+    }
+    false
+}
+
+fn determine_you_are_here(
+    current_you_are_here: Option<&Room>,
+    floorplan: &FloorPlan,
+) -> Option<Room> {
+    if current_you_are_here.is_none() {
+        if let Ok(start_room) = floorplan.get_start_room() {
+            return Some(start_room.clone());
+        }
+    }
+    current_you_are_here.cloned()
+}
+
+fn transition_to_next_state(next_state: &mut ResMut<NextState<GameState>>) {
+    debug!("Transitioning");
+    next_state.set(GameState::Transitioning);
 }
 
 pub fn spawn_world(
