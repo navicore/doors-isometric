@@ -133,7 +133,7 @@ pub fn spawn_world(
     }
 }
 
-pub fn spawn_connected_room(
+fn spawn_connected_room(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
@@ -161,7 +161,7 @@ pub fn spawn_connected_room(
         .add_child(door);
 }
 
-pub fn spawn_connected_room_door(
+fn spawn_connected_room_door(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
@@ -182,7 +182,7 @@ pub fn spawn_connected_room_door(
         .id()
 }
 
-pub fn spawn_unconnected_room(
+fn spawn_unconnected_room(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
@@ -202,7 +202,7 @@ pub fn spawn_unconnected_room(
         Transform::from_translation(position),
         room.clone(),
         RigidBody::Static,
-        collider, // Add collider to the room
+        collider,
     ));
 }
 
