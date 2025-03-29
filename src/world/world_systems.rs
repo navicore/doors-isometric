@@ -85,10 +85,10 @@ pub fn spawn_world(
                 let (shape, mat, position, collider) =
                     if connected_room_node_index.contains(&node_index) {
                         (
-                            meshes.add(Cuboid::new(4.0, 2.0, 4.0)),
+                            meshes.add(Cuboid::new(4.0, 4.0, 4.0)),
                             materials.add(Color::from(calculate_room_color(&room.name))),
-                            calculate_room_position(node_index, 0.8),
-                            Collider::cuboid(4.0, 2.0, 4.0),
+                            calculate_room_position(node_index, 1.8),
+                            Collider::cuboid(4.0, 4.0, 4.0),
                         )
                     } else {
                         (
@@ -98,15 +98,44 @@ pub fn spawn_world(
                             Collider::cuboid(4.0, 0.1, 4.0),
                         )
                     };
+                if connected_room_node_index.contains(&node_index) {
+                    let room_size = 4.0;
+                    let door_size = Vec3::new(2.0, 3.0, 0.1); // Width, height, depth of the door
+                    let door_position = Vec3::new(0.0, 0.0, -(room_size / 2.0 + door_size.z / 2.0)); // Centered on the front face
 
-                commands.spawn((
-                    Mesh3d(shape),
-                    MeshMaterial3d(mat),
-                    Transform::from_translation(position),
-                    room.clone(),
-                    RigidBody::Static,
-                    collider, // Add collider to the room
-                ));
+                    let door = commands
+                        .spawn((
+                            Mesh3d(meshes.add(Cuboid::new(door_size.x, door_size.y, door_size.z))),
+                            MeshMaterial3d(materials.add(Color::from(RED_600))),
+                            Transform::from_translation(door_position),
+                            Collider::cuboid(
+                                door_size.x / 2.0,
+                                door_size.y / 2.0,
+                                door_size.z / 2.0,
+                            ),
+                        ))
+                        .id();
+
+                    commands
+                        .spawn((
+                            Mesh3d(shape),
+                            MeshMaterial3d(mat),
+                            Transform::from_translation(position),
+                            room.clone(),
+                            RigidBody::Static,
+                            collider,
+                        ))
+                        .add_child(door);
+                } else {
+                    commands.spawn((
+                        Mesh3d(shape),
+                        MeshMaterial3d(mat),
+                        Transform::from_translation(position),
+                        room.clone(),
+                        RigidBody::Static,
+                        collider, // Add collider to the room
+                    ));
+                }
             }
         }
 
