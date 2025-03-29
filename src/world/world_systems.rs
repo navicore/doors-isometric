@@ -124,18 +124,7 @@ pub fn spawn_connected_room(
     let position = calculate_room_position(node_index, 1.8);
     let collider = Collider::cuboid(4.0, 4.0, 4.0);
 
-    let room_size = 4.0;
-    let door_size = Vec3::new(2.0, 3.0, 0.1); // Width, height, depth of the door
-    let door_position = Vec3::new(0.0, 0.0, -(room_size / 2.0 + door_size.z / 2.0)); // Centered on the front face
-
-    let door = commands
-        .spawn((
-            Mesh3d(meshes.add(Cuboid::new(door_size.x, door_size.y, door_size.z))),
-            MeshMaterial3d(materials.add(Color::from(RED_600))),
-            Transform::from_translation(door_position),
-            Collider::cuboid(door_size.x / 2.0, door_size.y / 2.0, door_size.z / 2.0),
-        ))
-        .id();
+    let door = spawn_connected_room_door(commands, meshes, materials);
 
     commands
         .spawn((
@@ -147,6 +136,27 @@ pub fn spawn_connected_room(
             collider,
         ))
         .add_child(door);
+}
+
+pub fn spawn_connected_room_door(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+) -> Entity {
+    debug!("Spawning connected room door");
+
+    let room_size = 4.0;
+    let door_size = Vec3::new(2.0, 3.0, 0.1); // Width, height, depth of the door
+    let door_position = Vec3::new(0.0, 0.0, -(room_size / 2.0 + door_size.z / 2.0)); // Centered on the front face
+
+    commands
+        .spawn((
+            Mesh3d(meshes.add(Cuboid::new(door_size.x, door_size.y, door_size.z))),
+            MeshMaterial3d(materials.add(Color::from(RED_600))),
+            Transform::from_translation(door_position),
+            Collider::cuboid(door_size.x / 2.0, door_size.y / 2.0, door_size.z / 2.0),
+        ))
+        .id()
 }
 
 pub fn spawn_unconnected_room(
