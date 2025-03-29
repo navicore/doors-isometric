@@ -87,6 +87,7 @@ pub fn spawn_world(
         for node_index in floorplan.graph.node_indices() {
             if let Some(room) = floorplan.graph.node_weight(node_index) {
                 if connected_room_node_index.contains(&node_index) {
+                    // is a connected room - we want to spawn a door
                     spawn_connected_room(
                         &mut commands,
                         &mut meshes,
