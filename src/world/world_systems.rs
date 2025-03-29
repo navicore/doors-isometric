@@ -1,5 +1,8 @@
 use super::world_component::CurrentFloorPlan;
-use crate::{floorplan::FloorPlanEvent, state::GameState};
+use crate::{
+    floorplan::{FloorPlanEvent, Room},
+    state::GameState,
+};
 use avian3d::prelude::*;
 use bevy::{
     color::palettes::tailwind::{
@@ -79,90 +82,106 @@ pub fn spawn_world(
                 }
             }
         }
+
         // Visualize Rooms
         for node_index in floorplan.graph.node_indices() {
             if let Some(room) = floorplan.graph.node_weight(node_index) {
-                let (shape, mat, position, collider) =
-                    if connected_room_node_index.contains(&node_index) {
-                        (
-                            meshes.add(Cuboid::new(4.0, 4.0, 4.0)),
-                            materials.add(Color::from(calculate_room_color(&room.name))),
-                            calculate_room_position(node_index, 1.8),
-                            Collider::cuboid(4.0, 4.0, 4.0),
-                        )
-                    } else {
-                        (
-                            meshes.add(Cuboid::new(4.0, 0.1, 4.0)),
-                            materials.add(Color::from(GRAY_600)),
-                            calculate_room_position(node_index, 0.0),
-                            Collider::cuboid(4.0, 0.1, 4.0),
-                        )
-                    };
                 if connected_room_node_index.contains(&node_index) {
-                    let room_size = 4.0;
-                    let door_size = Vec3::new(2.0, 3.0, 0.1); // Width, height, depth of the door
-                    let door_position = Vec3::new(0.0, 0.0, -(room_size / 2.0 + door_size.z / 2.0)); // Centered on the front face
-
-                    let door = commands
-                        .spawn((
-                            Mesh3d(meshes.add(Cuboid::new(door_size.x, door_size.y, door_size.z))),
-                            MeshMaterial3d(materials.add(Color::from(RED_600))),
-                            Transform::from_translation(door_position),
-                            Collider::cuboid(
-                                door_size.x / 2.0,
-                                door_size.y / 2.0,
-                                door_size.z / 2.0,
-                            ),
-                        ))
-                        .id();
-
-                    commands
-                        .spawn((
-                            Mesh3d(shape),
-                            MeshMaterial3d(mat),
-                            Transform::from_translation(position),
-                            room.clone(),
-                            RigidBody::Static,
-                            collider,
-                        ))
-                        .add_child(door);
+                    // is a connected room - we want to spawn a door
+                    spawn_connected_room(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        node_index,
+                        room,
+                    );
                 } else {
-                    commands.spawn((
-                        Mesh3d(shape),
-                        MeshMaterial3d(mat),
-                        Transform::from_translation(position),
-                        room.clone(),
-                        RigidBody::Static,
-                        collider, // Add collider to the room
-                    ));
+                    spawn_unconnected_room(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        node_index,
+                        room,
+                    );
                 }
             }
         }
 
-        // Visualize Doors (Edges)
-        // for edge in floorplan.graph.edge_references() {
-        //     let source_pos = calculate_room_position(edge.source());
-        //     let target_pos = calculate_room_position(edge.target());
-        //
-        //     let door_pos = (source_pos + target_pos) / 2.0;
-        //     let direction = target_pos - source_pos;
-        //
-        //     let shape = meshes.add(Cuboid::new(1.0, 1.5, 0.2));
-        //     let mat = materials.add(Color::from(RED_500));
-        //     commands.spawn((
-        //         Mesh3d(shape),
-        //         MeshMaterial3d(mat),
-        //         Transform {
-        //             translation: door_pos,
-        //             rotation: Quat::from_rotation_y(direction.z.atan2(direction.x)),
-        //             ..default()
-        //         },
-        //         edge.weight().clone(),
-        //     ));
-        // }
-
         next_state.set(GameState::InGame);
     }
+}
+
+pub fn spawn_connected_room(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    node_index: NodeIndex,
+    room: &Room,
+) {
+    debug!("Spawning connected room");
+
+    let shape = meshes.add(Cuboid::new(4.0, 4.0, 4.0));
+    let mat = materials.add(Color::from(calculate_room_color(&room.name)));
+    let position = calculate_room_position(node_index, 1.8);
+    let collider = Collider::cuboid(4.0, 4.0, 4.0);
+
+    let door = spawn_connected_room_door(commands, meshes, materials);
+
+    commands
+        .spawn((
+            Mesh3d(shape),
+            MeshMaterial3d(mat),
+            Transform::from_translation(position),
+            room.clone(),
+            RigidBody::Static,
+            collider,
+        ))
+        .add_child(door);
+}
+
+pub fn spawn_connected_room_door(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+) -> Entity {
+    debug!("Spawning connected room door");
+
+    let room_size = 4.0;
+    let door_size = Vec3::new(2.0, 3.0, 0.1); // Width, height, depth of the door
+    let door_position = Vec3::new(0.0, 0.0, -(room_size / 2.0 + door_size.z / 2.0)); // Centered on the front face
+
+    commands
+        .spawn((
+            Mesh3d(meshes.add(Cuboid::new(door_size.x, door_size.y, door_size.z))),
+            MeshMaterial3d(materials.add(Color::from(RED_600))),
+            Transform::from_translation(door_position),
+            Collider::cuboid(door_size.x / 2.0, door_size.y / 2.0, door_size.z / 2.0),
+        ))
+        .id()
+}
+
+pub fn spawn_unconnected_room(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    node_index: NodeIndex,
+    room: &Room,
+) {
+    debug!("Spawning unconnected room");
+
+    let shape = meshes.add(Cuboid::new(4.0, 0.1, 4.0));
+    let mat = materials.add(Color::from(GRAY_600));
+    let position = calculate_room_position(node_index, 0.0);
+    let collider = Collider::cuboid(4.0, 0.1, 4.0);
+
+    commands.spawn((
+        Mesh3d(shape),
+        MeshMaterial3d(mat),
+        Transform::from_translation(position),
+        room.clone(),
+        RigidBody::Static,
+        collider, // Add collider to the room
+    ));
 }
 
 #[allow(clippy::cast_precision_loss)]
