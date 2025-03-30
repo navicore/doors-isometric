@@ -6,7 +6,7 @@ use crate::{
 
 use super::player_component::{
     Action, Grounded, GroundedState, Player, PlayerBundle, PlayerDirection, PlayerState,
-    PLAYER_JUMP_FORCE, PLAYER_SHAPE_X,
+    DOOR_OPEN_DISTANCE_THRESHOLD, PLAYER_JUMP_FORCE, PLAYER_SHAPE_X,
 };
 use avian3d::prelude::*;
 use bevy::{color::palettes::tailwind::BLUE_600, prelude::*};
@@ -181,7 +181,7 @@ pub fn detect_enter_door(
                     let distance = player_position.distance(door_position);
 
                     // Check if the player is near the door (e.g., within a threshold)
-                    if distance < 70.0 {
+                    if distance < DOOR_OPEN_DISTANCE_THRESHOLD {
                         debug!("Player entered door: {:?} to room {:?}", door, room);
                         // if I have the Parent component, I can get the room entity
                         let room_entity = room.get();
