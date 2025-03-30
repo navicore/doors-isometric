@@ -64,14 +64,14 @@ fn process_floorplan_event(
         debug!("Floorplan changed");
         let you_are_here =
             determine_you_are_here(current_floorplan.you_are_here.as_ref(), floorplan);
-        let you_were_here = current_floorplan.you_are_here.clone();
+        let previous_room = current_floorplan.you_are_here.clone();
 
         *current_floorplan = CurrentFloorPlan {
             floorplan: Some(floorplan.clone()),
             refreshed: time.elapsed(),
             modified: time.elapsed(),
             you_are_here,
-            you_were_here,
+            previous_room,
         };
 
         return true;
@@ -110,7 +110,7 @@ pub fn spawn_world(
             commands.entity(entity).despawn();
         }
 
-        let you_were_here = current_floorplan.you_were_here.clone();
+        let previous_room = current_floorplan.previous_room.clone();
 
         let mut connected_rooms_and_doors = HashMap::new();
         if let Some(current_room) = &current_floorplan.you_are_here {
@@ -145,7 +145,7 @@ pub fn spawn_world(
                             node_index,
                             room,
                             door.clone(),
-                            Some(room) == you_were_here.as_ref(),
+                            Some(room) == previous_room.as_ref(),
                         );
                     }
                 } else {
@@ -175,12 +175,12 @@ fn spawn_connected_room(
 ) {
     debug!("Spawning connected room");
 
-    let y = if is_exit { EXIT_Y_LEN } else { ROOM_Y_LEN };
+    let room_height = if is_exit { EXIT_Y_LEN } else { ROOM_Y_LEN };
 
-    let shape = meshes.add(Cuboid::new(ROOM_X_LEN, y, ROOM_Z_LEN));
+    let shape = meshes.add(Cuboid::new(ROOM_X_LEN, room_height, ROOM_Z_LEN));
     let mat = materials.add(Color::from(calculate_room_color(&room.name)));
     let position = calculate_room_position(node_index, 1.8);
-    let collider = Collider::cuboid(ROOM_X_LEN, y, ROOM_Z_LEN);
+    let collider = Collider::cuboid(ROOM_X_LEN, room_height, ROOM_Z_LEN);
 
     let door = spawn_connected_room_door(commands, meshes, materials, door);
 

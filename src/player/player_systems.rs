@@ -185,7 +185,7 @@ fn handle_door_entry(
         *current_floorplan = CurrentFloorPlan {
             floorplan: current_floorplan.floorplan.clone(),
             you_are_here: Some(room.clone()),
-            you_were_here: current_floorplan.you_are_here.clone(),
+            previous_room: current_floorplan.you_are_here.clone(),
             ..Default::default()
         };
 
