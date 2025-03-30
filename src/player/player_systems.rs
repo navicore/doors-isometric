@@ -6,7 +6,7 @@ use crate::{
 
 use super::player_component::{
     Action, Grounded, GroundedState, Player, PlayerBundle, PlayerDirection, PlayerState,
-    DOOR_OPEN_DISTANCE_THRESHOLD, PLAYER_JUMP_FORCE, PLAYER_SHAPE_X,
+    PLAYER_JUMP_FORCE, PLAYER_SHAPE_X,
 };
 use avian3d::prelude::*;
 use bevy::{color::palettes::tailwind::BLUE_600, prelude::*};
@@ -142,65 +142,86 @@ pub fn check_grounded(
 }
 
 #[allow(clippy::type_complexity)]
+fn find_door_collision(
+    collision: &Collision,
+    player_query: &Query<(Entity, &Transform), With<Player>>,
+    door_query: &Query<(Entity, &Transform, &Parent, &Door), (With<Door>, Without<Player>)>,
+) -> Option<(Entity, Entity)> {
+    let player_entities: Vec<Entity> = player_query.iter().map(|(entity, _)| entity).collect();
+    let door_entities: Vec<Entity> = door_query.iter().map(|(entity, _, _, _)| entity).collect();
+
+    let contacts = &collision.0;
+    let involved_entities = [contacts.entity1, contacts.entity2];
+
+    if contacts.is_sensor {
+        return None;
+    }
+
+    if !involved_entities
+        .iter()
+        .any(|e| player_entities.contains(e))
+    {
+        return None;
+    }
+
+    if !involved_entities.iter().any(|e| door_entities.contains(e)) {
+        return None;
+    }
+
+    for entity in &involved_entities {
+        if let Ok((_entity, _transform, parent, _door)) = door_query.get(*entity) {
+            return Some((*entity, parent.get()));
+        }
+    }
+
+    None
+}
+
+#[allow(clippy::type_complexity)]
 pub fn detect_enter_door(
     mut next_state: ResMut<NextState<GameState>>,
     mut current_floorplan: ResMut<CurrentFloorPlan>,
     mut collision_events: EventReader<Collision>,
-    mut player_query: Query<(Entity, &Transform), With<Player>>,
+    player_query: Query<(Entity, &Transform), With<Player>>,
     door_query: Query<(Entity, &Transform, &Parent, &Door), (With<Door>, Without<Player>)>,
     room_query: Query<&Room, (With<Room>, Without<Player>)>,
 ) {
-    let player_entities: Vec<Entity> = player_query.iter().map(|(entity, __)| entity).collect();
-    let door_entities: Vec<Entity> = door_query.iter().map(|(entity, _, _, __)| entity).collect();
-
-    if let Ok(player_transform) = &mut player_query.get_single_mut() {
-        for collision in collision_events.read() {
-            let contacts = &collision.0;
-
-            let involved_entities = [contacts.entity1, contacts.entity2];
-            if contacts.is_sensor {
-                continue;
-            }
-
-            if !involved_entities
-                .iter()
-                .any(|e| player_entities.contains(e))
-            {
-                continue;
-            }
-            if !involved_entities.iter().any(|e| door_entities.contains(e)) {
-                continue;
-            }
-
-            for entity in &involved_entities {
-                if let Ok((_entity, transform, room, door)) = door_query.get(*entity) {
-                    let player_position = player_transform.1.translation;
-                    let door_position = transform.translation;
-
-                    // Calculate the distance between the player and the door
-                    let distance = player_position.distance(door_position);
-
-                    // Check if the player is near the door (e.g., within a threshold)
-                    if distance < DOOR_OPEN_DISTANCE_THRESHOLD {
-                        debug!("Player entered door: {:?} to room {:?}", door, room);
-                        // if I have the Parent component, I can get the room entity
-                        let room_entity = room.get();
-                        if let Ok(room) = room_query.get(room_entity) {
-                            // Handle the door entry logic here
-                            let you_were_here = current_floorplan.you_are_here.clone();
-                            let you_are_here = Some(room.clone());
-                            let floorplan = current_floorplan.floorplan.clone();
-                            *current_floorplan = CurrentFloorPlan {
-                                floorplan,
-                                you_are_here,
-                                you_were_here,
-                                ..Default::default()
-                            };
-                            next_state.set(GameState::Transitioning);
-                        }
-                    }
-                }
-            }
+    for collision in collision_events.read() {
+        if let Some((door_entity, room_entity)) =
+            find_door_collision(collision, &player_query, &door_query)
+        {
+            handle_door_entry(
+                door_entity,
+                room_entity,
+                &mut current_floorplan,
+                &room_query,
+                &mut next_state,
+            );
         }
+    }
+}
+
+fn handle_door_entry(
+    door_entity: Entity,
+    room_entity: Entity,
+    current_floorplan: &mut CurrentFloorPlan,
+    room_query: &Query<&Room, (With<Room>, Without<Player>)>,
+    next_state: &mut ResMut<NextState<GameState>>,
+) {
+    if let Ok(room) = room_query.get(room_entity) {
+        debug!("Player entered door: {:?} to room {:?}", door_entity, room);
+
+        let you_were_here = current_floorplan.you_are_here.clone();
+        let you_are_here = Some(room.clone());
+        let floorplan = current_floorplan.floorplan.clone();
+
+        *current_floorplan = CurrentFloorPlan {
+            floorplan,
+            you_are_here,
+            you_were_here,
+            ..Default::default()
+        };
+
+        next_state.set(GameState::Transitioning);
     }
 }

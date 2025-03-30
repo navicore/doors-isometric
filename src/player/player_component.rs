@@ -14,8 +14,6 @@ const PLAYER_MASS: f32 = 4.0;
 pub const PLAYER_JUMP_FORCE: f32 = 250.0; // Jump force applied when pressing space
 pub const PLAYER_GRAVITY_SCALE: f32 = 2.5; // Gravity multiplier for falling speed
 
-pub const DOOR_OPEN_DISTANCE_THRESHOLD: f32 = 70.0;
-
 #[derive(Actionlike, PartialEq, Eq, Hash, Clone, Copy, Debug, Reflect)]
 pub enum Action {
     MoveForward,
