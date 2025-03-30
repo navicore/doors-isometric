@@ -20,5 +20,5 @@ pub struct CurrentFloorPlan {
     pub refreshed: Duration, // update every time we sync to the external state
     pub modified: Duration,  // update every time we modify due to changes in the external world
     pub you_are_here: Option<Room>,
-    pub you_were_here: Option<Room>,
+    pub previous_room: Option<Room>,
 }

@@ -18,6 +18,7 @@ const ROOM_X_LEN: f32 = 4.0;
 const ROOM_Y_LEN: f32 = 4.0;
 const ROOM_Z_LEN: f32 = 4.0;
 const PLACEHOLDER_Y_LEN: f32 = 0.1;
+const EXIT_Y_LEN: f32 = 4000.0;
 
 const FLOOR_THICKNESS: f32 = 3.0;
 const N_ROWS: usize = 5;
@@ -61,16 +62,16 @@ fn process_floorplan_event(
 ) -> bool {
     if current_floorplan.floorplan.as_ref() != Some(floorplan) {
         debug!("Floorplan changed");
-        let you_are_here =
+        let updated_current_room =
             determine_you_are_here(current_floorplan.you_are_here.as_ref(), floorplan);
-        let you_were_here = current_floorplan.you_are_here.clone();
+        let new_previous_room = current_floorplan.you_are_here.clone();
 
         *current_floorplan = CurrentFloorPlan {
             floorplan: Some(floorplan.clone()),
             refreshed: time.elapsed(),
             modified: time.elapsed(),
-            you_are_here,
-            you_were_here,
+            you_are_here: updated_current_room,
+            previous_room: new_previous_room,
         };
 
         return true;
@@ -109,6 +110,8 @@ pub fn spawn_world(
             commands.entity(entity).despawn();
         }
 
+        let previous_room = current_floorplan.previous_room.clone();
+
         let mut connected_rooms_and_doors = HashMap::new();
         if let Some(current_room) = &current_floorplan.you_are_here {
             if let Ok(entries) = floorplan.get_doors_and_connected_rooms(&current_room.id) {
@@ -134,6 +137,9 @@ pub fn spawn_world(
             if let Some(room) = floorplan.graph.node_weight(node_index) {
                 if connected_rooms_and_doors.contains_key(&node_index) {
                     if let Some(door) = connected_rooms_and_doors.remove(&node_index) {
+                        // if this is the room we just came from then it is an exit
+                        let is_exit = Some(room) == previous_room.as_ref();
+
                         // is a connected room - we want to spawn a door
                         spawn_connected_room(
                             &mut commands,
@@ -142,6 +148,7 @@ pub fn spawn_world(
                             node_index,
                             room,
                             door.clone(),
+                            is_exit,
                         );
                     }
                 } else {
@@ -167,13 +174,17 @@ fn spawn_connected_room(
     node_index: NodeIndex,
     room: &Room,
     door: Door,
+    // Whether this room is the previous room
+    is_exit: bool,
 ) {
     debug!("Spawning connected room");
 
-    let shape = meshes.add(Cuboid::new(ROOM_X_LEN, ROOM_Y_LEN, ROOM_Z_LEN));
+    let room_height = if is_exit { EXIT_Y_LEN } else { ROOM_Y_LEN };
+
+    let shape = meshes.add(Cuboid::new(ROOM_X_LEN, room_height, ROOM_Z_LEN));
     let mat = materials.add(Color::from(calculate_room_color(&room.name)));
     let position = calculate_room_position(node_index, 1.8);
-    let collider = Collider::cuboid(ROOM_X_LEN, ROOM_Y_LEN, ROOM_Z_LEN);
+    let collider = Collider::cuboid(ROOM_X_LEN, room_height, ROOM_Z_LEN);
 
     let door = spawn_connected_room_door(commands, meshes, materials, door);
 
