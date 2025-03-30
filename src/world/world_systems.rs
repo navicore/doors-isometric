@@ -18,6 +18,7 @@ const ROOM_X_LEN: f32 = 4.0;
 const ROOM_Y_LEN: f32 = 4.0;
 const ROOM_Z_LEN: f32 = 4.0;
 const PLACEHOLDER_Y_LEN: f32 = 0.1;
+const EXIT_Y_LEN: f32 = 4000.0;
 
 const FLOOR_THICKNESS: f32 = 3.0;
 const N_ROWS: usize = 5;
@@ -109,6 +110,8 @@ pub fn spawn_world(
             commands.entity(entity).despawn();
         }
 
+        let you_were_here = current_floorplan.you_were_here.clone();
+
         let mut connected_rooms_and_doors = HashMap::new();
         if let Some(current_room) = &current_floorplan.you_are_here {
             if let Ok(entries) = floorplan.get_doors_and_connected_rooms(&current_room.id) {
@@ -142,6 +145,7 @@ pub fn spawn_world(
                             node_index,
                             room,
                             door.clone(),
+                            Some(room) == you_were_here.as_ref(),
                         );
                     }
                 } else {
@@ -167,13 +171,16 @@ fn spawn_connected_room(
     node_index: NodeIndex,
     room: &Room,
     door: Door,
+    is_exit: bool,
 ) {
     debug!("Spawning connected room");
 
-    let shape = meshes.add(Cuboid::new(ROOM_X_LEN, ROOM_Y_LEN, ROOM_Z_LEN));
+    let y = if is_exit { EXIT_Y_LEN } else { ROOM_Y_LEN };
+
+    let shape = meshes.add(Cuboid::new(ROOM_X_LEN, y, ROOM_Z_LEN));
     let mat = materials.add(Color::from(calculate_room_color(&room.name)));
     let position = calculate_room_position(node_index, 1.8);
-    let collider = Collider::cuboid(ROOM_X_LEN, ROOM_Y_LEN, ROOM_Z_LEN);
+    let collider = Collider::cuboid(ROOM_X_LEN, y, ROOM_Z_LEN);
 
     let door = spawn_connected_room_door(commands, meshes, materials, door);
 
