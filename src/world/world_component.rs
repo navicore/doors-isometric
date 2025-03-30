@@ -22,3 +22,9 @@ pub struct CurrentFloorPlan {
     pub you_are_here: Option<Room>,
     pub previous_room: Option<Room>,
 }
+
+#[derive(Component, Default)]
+pub struct PlatformTransition {
+    pub target_y: f32,
+    pub speed: f32,
+}

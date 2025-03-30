@@ -189,6 +189,6 @@ fn handle_door_entry(
             ..Default::default()
         };
 
-        next_state.set(GameState::Transitioning);
+        next_state.set(GameState::TransitioningOut);
     }
 }

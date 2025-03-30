@@ -4,13 +4,16 @@ use crate::state::GameState;
 
 use super::{
     world_component::{CurrentFloorPlan, WorldPlugin},
-    world_systems::{handle_floor_plan_event, spawn_world},
+    world_systems::{handle_floor_plan_event, platform_transition_system, spawn_world},
 };
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(CurrentFloorPlan::default())
-            .add_systems(Update, handle_floor_plan_event)
-            .add_systems(OnEnter(GameState::Transitioning), spawn_world);
+            .add_systems(
+                Update,
+                (handle_floor_plan_event, platform_transition_system),
+            )
+            .add_systems(OnEnter(GameState::TransitioningOut), spawn_world);
     }
 }

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::world_component::{CurrentFloorPlan, Floor, PlatformMarker};
+use super::world_component::{CurrentFloorPlan, Floor, PlatformMarker, PlatformTransition};
 use crate::{
     floorplan::{Door, FloorPlan, FloorPlanEvent, Room},
     state::GameState,
@@ -51,7 +51,7 @@ pub fn handle_floor_plan_event(
     }
 
     if should_transition {
-        transition_to_next_state(&mut next_state);
+        next_state.set(GameState::TransitioningOut);
     }
 }
 
@@ -91,24 +91,27 @@ fn determine_you_are_here(
     current_you_are_here.cloned()
 }
 
-fn transition_to_next_state(next_state: &mut ResMut<NextState<GameState>>) {
-    debug!("Transitioning");
-    next_state.set(GameState::Transitioning);
-}
-
 pub fn spawn_world(
     mut commands: Commands,
-    platform_query: Query<Entity, With<PlatformMarker>>,
+    platform_query: Query<(Entity, &Transform), With<PlatformMarker>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     current_floorplan: ResMut<CurrentFloorPlan>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     if let Some(floorplan) = &current_floorplan.floorplan {
-        // first, destroy all existing entities with the PlatformMarker component
-        for entity in platform_query.iter() {
-            commands.entity(entity).despawn();
+        // Animate existing platforms to rise out of view
+        for (entity, transform) in platform_query.iter() {
+            commands.entity(entity).insert(PlatformTransition {
+                target_y: transform.translation.y + 1000.0, // Move up by 1000 units
+                speed: 0.5,                                 // Adjust speed as needed
+            });
         }
+
+        // // first, destroy all existing entities with the PlatformMarker component
+        // for entity in platform_query.iter() {
+        //     commands.entity(entity).despawn();
+        // }
 
         let previous_room = current_floorplan.previous_room.clone();
 
@@ -163,7 +166,7 @@ pub fn spawn_world(
             }
         }
 
-        next_state.set(GameState::InGame);
+        next_state.set(GameState::TransitioningIn);
     }
 }
 
@@ -279,6 +282,7 @@ fn spawn_floor(
         Collider::cuboid(floor_width, floor_thickness, floor_depth),
         Floor::default(),
         PlatformMarker::default(),
+        PlatformTransition::default(),
     ));
 }
 
@@ -287,4 +291,19 @@ fn calculate_room_position(index: NodeIndex, yoffset: f32) -> Vec3 {
     let x = (index.index() % N_ROWS) as f32 * SPACING;
     let z = (index.index() / N_ROWS) as f32 * SPACING; // adjust 'spacing' as needed
     Vec3::new(x, 0.0 + yoffset, z)
+}
+
+pub fn platform_transition_system(
+    mut query: Query<(Entity, &mut Transform, &PlatformTransition)>,
+    mut commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    for (entity, mut transform, transition) in query.iter_mut() {
+        if (transform.translation.y - transition.target_y).abs() > 0.1 {
+            transform.translation.y += transition.speed;
+        } else {
+            commands.entity(entity).remove::<PlatformTransition>();
+            next_state.set(GameState::InGame);
+        }
+    }
 }
