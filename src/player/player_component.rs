@@ -4,15 +4,15 @@ use bevy::reflect::Reflect;
 use leafwing_input_manager::{prelude::InputMap, Actionlike, InputManagerBundle};
 
 // Define movement constants
-const PLAYER_WALK_SPEED: f32 = 2.0; // Horizontal movement speed
+const PLAYER_WALK_SPEED: f32 = 4.0; // Horizontal movement speed
 
 pub const PLAYER_SHAPE_X: f32 = 1.2;
 pub const PLAYER_SHAPE_Y: f32 = 1.8;
 pub const PLAYER_SHAPE_Z: f32 = 1.2;
 
 const PLAYER_MASS: f32 = 4.0;
-pub const PLAYER_JUMP_FORCE: f32 = 400.0; // Jump force applied when pressing space
-pub const PLAYER_GRAVITY_SCALE: f32 = 1.5; // Gravity multiplier for falling speed
+pub const PLAYER_JUMP_FORCE: f32 = 250.0; // Jump force applied when pressing space
+pub const PLAYER_GRAVITY_SCALE: f32 = 2.5; // Gravity multiplier for falling speed
 
 #[derive(Actionlike, PartialEq, Eq, Hash, Clone, Copy, Debug, Reflect)]
 pub enum Action {
