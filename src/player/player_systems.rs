@@ -1,8 +1,12 @@
-use crate::world::world_component::PlatformMarker;
+use crate::{
+    floorplan::{Door, Room},
+    state::GameState,
+    world::world_component::{CurrentFloorPlan, PlatformMarker},
+};
 
 use super::player_component::{
     Action, Grounded, GroundedState, Player, PlayerBundle, PlayerDirection, PlayerState,
-    PLAYER_JUMP_FORCE, PLAYER_SHAPE_X,
+    DOOR_OPEN_DISTANCE_THRESHOLD, PLAYER_JUMP_FORCE, PLAYER_SHAPE_X,
 };
 use avian3d::prelude::*;
 use bevy::{color::palettes::tailwind::BLUE_600, prelude::*};
@@ -101,14 +105,14 @@ pub fn player_movement(
 pub fn check_grounded(
     mut collision_events: EventReader<Collision>,
     mut grounded_state: ResMut<GroundedState>,
-    mut query: Query<(Entity, &mut Grounded, &Transform), With<Player>>,
+    mut player_query: Query<(Entity, &mut Grounded, &Transform), With<Player>>,
     platform_query: Query<(Entity, &Transform), (With<PlatformMarker>, Without<Player>)>, // Query for platforms
 ) {
-    let player_entities: Vec<Entity> = query.iter().map(|(entity, _, _)| entity).collect();
+    let player_entities: Vec<Entity> = player_query.iter().map(|(entity, _, _)| entity).collect();
 
     let mut t_grounded = false;
 
-    if let Ok((_, grounded, player_transform)) = &mut query.get_single_mut() {
+    if let Ok((_, grounded, player_transform)) = &mut player_query.get_single_mut() {
         for collision in collision_events.read() {
             let contacts = &collision.0;
 
@@ -135,4 +139,68 @@ pub fn check_grounded(
         grounded.0 = t_grounded;
     }
     grounded_state.0 = t_grounded;
+}
+
+#[allow(clippy::type_complexity)]
+pub fn detect_enter_door(
+    mut next_state: ResMut<NextState<GameState>>,
+    mut current_floorplan: ResMut<CurrentFloorPlan>,
+    mut collision_events: EventReader<Collision>,
+    mut player_query: Query<(Entity, &Transform), With<Player>>,
+    door_query: Query<(Entity, &Transform, &Parent, &Door), (With<Door>, Without<Player>)>,
+    room_query: Query<&Room, (With<Room>, Without<Player>)>,
+) {
+    let player_entities: Vec<Entity> = player_query.iter().map(|(entity, __)| entity).collect();
+    let door_entities: Vec<Entity> = door_query.iter().map(|(entity, _, _, __)| entity).collect();
+
+    if let Ok(player_transform) = &mut player_query.get_single_mut() {
+        for collision in collision_events.read() {
+            let contacts = &collision.0;
+
+            let involved_entities = [contacts.entity1, contacts.entity2];
+            if contacts.is_sensor {
+                continue;
+            }
+
+            if !involved_entities
+                .iter()
+                .any(|e| player_entities.contains(e))
+            {
+                continue;
+            }
+            if !involved_entities.iter().any(|e| door_entities.contains(e)) {
+                continue;
+            }
+
+            for entity in &involved_entities {
+                if let Ok((_entity, transform, room, door)) = door_query.get(*entity) {
+                    let player_position = player_transform.1.translation;
+                    let door_position = transform.translation;
+
+                    // Calculate the distance between the player and the door
+                    let distance = player_position.distance(door_position);
+
+                    // Check if the player is near the door (e.g., within a threshold)
+                    if distance < DOOR_OPEN_DISTANCE_THRESHOLD {
+                        debug!("Player entered door: {:?} to room {:?}", door, room);
+                        // if I have the Parent component, I can get the room entity
+                        let room_entity = room.get();
+                        if let Ok(room) = room_query.get(room_entity) {
+                            // Handle the door entry logic here
+                            let you_were_here = current_floorplan.you_are_here.clone();
+                            let you_are_here = Some(room.clone());
+                            let floorplan = current_floorplan.floorplan.clone();
+                            *current_floorplan = CurrentFloorPlan {
+                                floorplan,
+                                you_are_here,
+                                you_were_here,
+                                ..Default::default()
+                            };
+                            next_state.set(GameState::Transitioning);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

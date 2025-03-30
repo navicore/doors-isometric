@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use super::world_component::{CurrentFloorPlan, Floor, PlatformMarker};
 use crate::{
-    floorplan::{FloorPlan, FloorPlanEvent, Room},
+    floorplan::{Door, FloorPlan, FloorPlanEvent, Room},
     state::GameState,
 };
 use avian3d::prelude::*;
@@ -95,20 +97,24 @@ fn transition_to_next_state(next_state: &mut ResMut<NextState<GameState>>) {
 
 pub fn spawn_world(
     mut commands: Commands,
+    platform_query: Query<Entity, With<PlatformMarker>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     current_floorplan: ResMut<CurrentFloorPlan>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    debug!("Spawning world");
     if let Some(floorplan) = &current_floorplan.floorplan {
-        // make a vec of the current room's connected room node_index
-        let mut connected_room_node_index = Vec::new();
+        // first, destroy all existing entities with the PlatformMarker component
+        for entity in platform_query.iter() {
+            commands.entity(entity).despawn();
+        }
+
+        let mut connected_rooms_and_doors = HashMap::new();
         if let Some(current_room) = &current_floorplan.you_are_here {
-            if let Ok(entries) = &floorplan.get_doors_and_connected_rooms(&current_room.id) {
-                for (_door, room) in entries {
+            if let Ok(entries) = floorplan.get_doors_and_connected_rooms(&current_room.id) {
+                for (door, room) in entries {
                     if let Ok(node_index) = floorplan.get_room_idx_by_id(&room.id) {
-                        connected_room_node_index.push(node_index);
+                        connected_rooms_and_doors.insert(node_index, door);
                     }
                 }
             }
@@ -126,15 +132,18 @@ pub fn spawn_world(
         // Visualize Rooms
         for node_index in floorplan.graph.node_indices() {
             if let Some(room) = floorplan.graph.node_weight(node_index) {
-                if connected_room_node_index.contains(&node_index) {
-                    // is a connected room - we want to spawn a door
-                    spawn_connected_room(
-                        &mut commands,
-                        &mut meshes,
-                        &mut materials,
-                        node_index,
-                        room,
-                    );
+                if connected_rooms_and_doors.contains_key(&node_index) {
+                    if let Some(door) = connected_rooms_and_doors.remove(&node_index) {
+                        // is a connected room - we want to spawn a door
+                        spawn_connected_room(
+                            &mut commands,
+                            &mut meshes,
+                            &mut materials,
+                            node_index,
+                            room,
+                            door.clone(),
+                        );
+                    }
                 } else {
                     spawn_unconnected_room(
                         &mut commands,
@@ -157,6 +166,7 @@ fn spawn_connected_room(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     node_index: NodeIndex,
     room: &Room,
+    door: Door,
 ) {
     debug!("Spawning connected room");
 
@@ -165,7 +175,7 @@ fn spawn_connected_room(
     let position = calculate_room_position(node_index, 1.8);
     let collider = Collider::cuboid(ROOM_X_LEN, ROOM_Y_LEN, ROOM_Z_LEN);
 
-    let door = spawn_connected_room_door(commands, meshes, materials);
+    let door = spawn_connected_room_door(commands, meshes, materials, door);
 
     commands
         .spawn((
@@ -184,6 +194,7 @@ fn spawn_connected_room_door(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
+    door: Door,
 ) -> Entity {
     debug!("Spawning connected room door");
 
@@ -196,7 +207,10 @@ fn spawn_connected_room_door(
             Mesh3d(meshes.add(Cuboid::new(door_size.x, door_size.y, door_size.z))),
             MeshMaterial3d(materials.add(Color::from(RED_600))),
             Transform::from_translation(door_position),
+            RigidBody::Static,
             Collider::cuboid(door_size.x / 2.0, door_size.y / 2.0, door_size.z / 2.0),
+            door,
+            PlatformMarker::default(),
         ))
         .id()
 }

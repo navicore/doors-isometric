@@ -14,7 +14,7 @@ pub struct PlatformMarker {}
 #[derive(Component, Default)]
 pub struct Floor {}
 
-#[derive(Default, Resource)]
+#[derive(Default, Resource, Debug)]
 pub struct CurrentFloorPlan {
     pub floorplan: Option<FloorPlan>,
     pub refreshed: Duration, // update every time we sync to the external state
