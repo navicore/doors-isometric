@@ -103,15 +103,10 @@ pub fn spawn_world(
         // Animate existing platforms to rise out of view
         for (entity, transform) in platform_query.iter() {
             commands.entity(entity).insert(PlatformTransition {
-                target_y: transform.translation.y + 1000.0, // Move up by 1000 units
-                speed: 0.5,                                 // Adjust speed as needed
+                target_y: transform.translation.y + 100.0, // Move up by 1000 units
+                speed: 1.5,                                // Adjust speed as needed
             });
         }
-
-        // // first, destroy all existing entities with the PlatformMarker component
-        // for entity in platform_query.iter() {
-        //     commands.entity(entity).despawn();
-        // }
 
         let previous_room = current_floorplan.previous_room.clone();
 
@@ -166,6 +161,7 @@ pub fn spawn_world(
             }
         }
 
+        debug!("Spawned world with {} rooms", floorplan.graph.node_count());
         next_state.set(GameState::TransitioningIn);
     }
 }
@@ -282,7 +278,7 @@ fn spawn_floor(
         Collider::cuboid(floor_width, floor_thickness, floor_depth),
         Floor::default(),
         PlatformMarker::default(),
-        PlatformTransition::default(),
+        //PlatformTransition::default(),
     ));
 }
 
@@ -298,12 +294,21 @@ pub fn platform_transition_system(
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
+    let mut transitions_remaining = false;
+
     for (entity, mut transform, transition) in query.iter_mut() {
-        if (transform.translation.y - transition.target_y).abs() > 0.1 {
-            transform.translation.y += transition.speed;
+        transform.translation.y += transition.speed;
+
+        if transform.translation.y > transition.target_y {
+            //commands.entity(entity).remove::<PlatformTransition>();
+            commands.entity(entity).despawn();
         } else {
-            commands.entity(entity).remove::<PlatformTransition>();
-            next_state.set(GameState::InGame);
+            transitions_remaining = true;
         }
+    }
+    // BUG!  it never gets into InGame
+
+    if !transitions_remaining {
+        next_state.set(GameState::InGame);
     }
 }
