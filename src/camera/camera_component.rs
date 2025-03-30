@@ -9,8 +9,16 @@ pub struct MainCamera;
 
 #[derive(Actionlike, PartialEq, Eq, Hash, Clone, Copy, Debug, Reflect)]
 pub enum CameraAction {
-    PanLeft,
-    PanRight,
-    // Backward,
-    // Forward,
+    TranslationXInc,
+    TranslationXDec,
+    TranslationYInc,
+    TranslationYDec,
+    TranslationZInc,
+    TranslationZDec,
+    RotateXInc,
+    RotateXDec,
+    RotateYInc,
+    RotateYDec,
+    RotateZInc,
+    RotateZDec,
 }

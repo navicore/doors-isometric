@@ -19,7 +19,7 @@ const ROOM_Y_LEN: f32 = 4.0;
 const ROOM_Z_LEN: f32 = 4.0;
 const PLACEHOLDER_Y_LEN: f32 = 0.1;
 
-const FLOOR_THICKNESS: f32 = 0.5;
+const FLOOR_THICKNESS: f32 = 3.0;
 const N_ROWS: usize = 5;
 const SPACING: f32 = 8.0;
 
