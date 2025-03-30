@@ -1,7 +1,28 @@
 use crate::player::Player;
 
-use super::camera_component::MainCamera;
+use super::camera_component::{CameraAction, MainCamera};
 use bevy::prelude::*;
+use leafwing_input_manager::{
+    prelude::{ActionState, InputMap},
+    InputManagerBundle,
+};
+
+pub fn move_camera(
+    mut query: Query<(&ActionState<CameraAction>, &mut Transform), With<MainCamera>>,
+) {
+    if let Ok((action_state, mut transform)) = query.get_single_mut() {
+        let rotation_speed = 0.01; // Adjust rotation speed as needed
+
+        if action_state.pressed(&CameraAction::PanLeft) {
+            transform.rotation *= Quat::from_rotation_y(rotation_speed);
+            transform.rotation *= Quat::from_rotation_z(rotation_speed);
+        }
+        if action_state.pressed(&CameraAction::PanRight) {
+            transform.rotation *= Quat::from_rotation_y(-rotation_speed);
+            transform.rotation *= Quat::from_rotation_z(-rotation_speed);
+        }
+    }
+}
 
 pub fn setup_camera(mut commands: Commands) {
     // Standard isometric angles: rotated 45° horizontally, ~35.26° vertically
@@ -9,7 +30,17 @@ pub fn setup_camera(mut commands: Commands) {
     let target = Vec3::ZERO;
     let camera_transform = Transform::from_translation(translation).looking_at(target, Vec3::Y);
 
-    commands.spawn((Camera3d::default(), MainCamera, camera_transform));
+    let input_map = InputMap::new([
+        (CameraAction::PanLeft, KeyCode::F8),
+        (CameraAction::PanRight, KeyCode::F9),
+    ]);
+
+    commands.spawn((
+        Camera3d::default(),
+        MainCamera,
+        camera_transform,
+        InputManagerBundle::with_map(input_map),
+    ));
 
     // Add a simple directional light for basic illumination
     commands.spawn((

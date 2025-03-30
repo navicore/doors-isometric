@@ -21,7 +21,6 @@ pub enum Action {
     MoveLeft,
     MoveRight,
     Jump,
-    Enter,
 }
 
 #[derive(Component)]
@@ -65,7 +64,6 @@ impl PlayerBundle {
             (Action::MoveLeft, KeyCode::ArrowLeft),
             (Action::MoveRight, KeyCode::ArrowRight),
             (Action::Jump, KeyCode::Space),
-            (Action::Enter, KeyCode::Enter),
         ]);
 
         Self {
