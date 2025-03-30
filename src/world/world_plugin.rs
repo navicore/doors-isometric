@@ -11,9 +11,6 @@ impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(CurrentFloorPlan::default())
             .add_systems(Update, handle_floor_plan_event)
-            .add_systems(
-                OnEnter(GameState::Transitioning),
-                spawn_world.after(handle_floor_plan_event),
-            );
+            .add_systems(OnEnter(GameState::Transitioning), spawn_world);
     }
 }

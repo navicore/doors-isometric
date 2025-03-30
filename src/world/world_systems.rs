@@ -1,6 +1,6 @@
 use super::world_component::{CurrentFloorPlan, Floor, PlatformMarker};
 use crate::{
-    floorplan::{FloorPlan, FloorPlanEvent, Room},
+    floorplan::{Door, FloorPlan, FloorPlanEvent, Room},
     state::GameState,
 };
 use avian3d::prelude::*;
@@ -95,13 +95,18 @@ fn transition_to_next_state(next_state: &mut ResMut<NextState<GameState>>) {
 
 pub fn spawn_world(
     mut commands: Commands,
+    platform_query: Query<Entity, With<PlatformMarker>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     current_floorplan: ResMut<CurrentFloorPlan>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    debug!("Spawning world");
     if let Some(floorplan) = &current_floorplan.floorplan {
+        // first, destroy all existing entities with the PlatformMarker component
+        for entity in platform_query.iter() {
+            commands.entity(entity).despawn();
+        }
+
         // make a vec of the current room's connected room node_index
         let mut connected_room_node_index = Vec::new();
         if let Some(current_room) = &current_floorplan.you_are_here {
@@ -196,7 +201,10 @@ fn spawn_connected_room_door(
             Mesh3d(meshes.add(Cuboid::new(door_size.x, door_size.y, door_size.z))),
             MeshMaterial3d(materials.add(Color::from(RED_600))),
             Transform::from_translation(door_position),
+            RigidBody::Static,
             Collider::cuboid(door_size.x / 2.0, door_size.y / 2.0, door_size.z / 2.0),
+            Door::default(), //TODO use correct component instance
+            PlatformMarker::default(),
         ))
         .id()
 }
