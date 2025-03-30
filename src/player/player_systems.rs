@@ -1,12 +1,11 @@
+use super::player_component::{
+    Action, Grounded, GroundedState, Player, PlayerBundle, PlayerDirection, PlayerState,
+    PLAYER_JUMP_FORCE, PLAYER_SHAPE_X,
+};
 use crate::{
     floorplan::{Door, Room},
     state::GameState,
     world::world_component::{CurrentFloorPlan, PlatformMarker},
-};
-
-use super::player_component::{
-    Action, Grounded, GroundedState, Player, PlayerBundle, PlayerDirection, PlayerState,
-    PLAYER_JUMP_FORCE, PLAYER_SHAPE_X,
 };
 use avian3d::prelude::*;
 use bevy::{color::palettes::tailwind::BLUE_600, prelude::*};
@@ -17,8 +16,7 @@ pub fn spawn_player(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    //let player_shape = meshes.add(Cuboid::new(PLAYER_SHAPE_X, PLAYER_SHAPE_Y, PLAYER_SHAPE_Z)); // Player size
-    let player_shape = meshes.add(Sphere::new(PLAYER_SHAPE_X / 2.0)); // Player size as a sphere
+    let player_shape = meshes.add(Sphere::new(PLAYER_SHAPE_X / 2.0));
     let player_material = materials.add(Color::from(BLUE_600));
 
     commands.spawn((
@@ -106,13 +104,11 @@ pub fn check_grounded(
     mut collision_events: EventReader<Collision>,
     mut grounded_state: ResMut<GroundedState>,
     mut player_query: Query<(Entity, &mut Grounded, &Transform), With<Player>>,
-    platform_query: Query<(Entity, &Transform), (With<PlatformMarker>, Without<Player>)>, // Query for platforms
+    platform_query: Query<(Entity, &Transform), With<PlatformMarker>>,
 ) {
-    let player_entities: Vec<Entity> = player_query.iter().map(|(entity, _, _)| entity).collect();
-
     let mut t_grounded = false;
 
-    if let Ok((_, grounded, player_transform)) = &mut player_query.get_single_mut() {
+    if let Ok((player_entity, grounded, player_transform)) = &mut player_query.get_single_mut() {
         for collision in collision_events.read() {
             let contacts = &collision.0;
 
@@ -121,10 +117,7 @@ pub fn check_grounded(
             }
 
             let involved_entities = [contacts.entity1, contacts.entity2];
-            if !involved_entities
-                .iter()
-                .any(|e| player_entities.contains(e))
-            {
+            if !involved_entities.iter().any(|e| e == player_entity) {
                 continue;
             }
 
@@ -144,12 +137,8 @@ pub fn check_grounded(
 #[allow(clippy::type_complexity)]
 fn find_door_collision(
     collision: &Collision,
-    player_query: &Query<(Entity, &Transform), With<Player>>,
-    door_query: &Query<(Entity, &Transform, &Parent, &Door), (With<Door>, Without<Player>)>,
-) -> Option<(Entity, Entity)> {
-    let player_entities: Vec<Entity> = player_query.iter().map(|(entity, _)| entity).collect();
-    let door_entities: Vec<Entity> = door_query.iter().map(|(entity, _, _, _)| entity).collect();
-
+    door_query: &Query<(Entity, &Transform, &Parent, &Door)>,
+) -> Option<Entity> {
     let contacts = &collision.0;
     let involved_entities = [contacts.entity1, contacts.entity2];
 
@@ -157,20 +146,9 @@ fn find_door_collision(
         return None;
     }
 
-    if !involved_entities
-        .iter()
-        .any(|e| player_entities.contains(e))
-    {
-        return None;
-    }
-
-    if !involved_entities.iter().any(|e| door_entities.contains(e)) {
-        return None;
-    }
-
     for entity in &involved_entities {
         if let Ok((_entity, _transform, parent, _door)) = door_query.get(*entity) {
-            return Some((*entity, parent.get()));
+            return Some(parent.get());
         }
     }
 
@@ -182,16 +160,12 @@ pub fn detect_enter_door(
     mut next_state: ResMut<NextState<GameState>>,
     mut current_floorplan: ResMut<CurrentFloorPlan>,
     mut collision_events: EventReader<Collision>,
-    player_query: Query<(Entity, &Transform), With<Player>>,
-    door_query: Query<(Entity, &Transform, &Parent, &Door), (With<Door>, Without<Player>)>,
-    room_query: Query<&Room, (With<Room>, Without<Player>)>,
+    door_query: Query<(Entity, &Transform, &Parent, &Door)>,
+    room_query: Query<&Room>,
 ) {
     for collision in collision_events.read() {
-        if let Some((door_entity, room_entity)) =
-            find_door_collision(collision, &player_query, &door_query)
-        {
+        if let Some(room_entity) = find_door_collision(collision, &door_query) {
             handle_door_entry(
-                door_entity,
                 room_entity,
                 &mut current_floorplan,
                 &room_query,
@@ -202,23 +176,16 @@ pub fn detect_enter_door(
 }
 
 fn handle_door_entry(
-    door_entity: Entity,
     room_entity: Entity,
     current_floorplan: &mut CurrentFloorPlan,
-    room_query: &Query<&Room, (With<Room>, Without<Player>)>,
+    room_query: &Query<&Room>,
     next_state: &mut ResMut<NextState<GameState>>,
 ) {
     if let Ok(room) = room_query.get(room_entity) {
-        debug!("Player entered door: {:?} to room {:?}", door_entity, room);
-
-        let you_were_here = current_floorplan.you_are_here.clone();
-        let you_are_here = Some(room.clone());
-        let floorplan = current_floorplan.floorplan.clone();
-
         *current_floorplan = CurrentFloorPlan {
-            floorplan,
-            you_are_here,
-            you_were_here,
+            floorplan: current_floorplan.floorplan.clone(),
+            you_are_here: Some(room.clone()),
+            you_were_here: current_floorplan.you_are_here.clone(),
             ..Default::default()
         };
 
