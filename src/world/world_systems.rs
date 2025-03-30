@@ -62,7 +62,7 @@ fn process_floorplan_event(
 ) -> bool {
     if current_floorplan.floorplan.as_ref() != Some(floorplan) {
         debug!("Floorplan changed");
-        let new_you_are_here =
+        let updated_current_room =
             determine_you_are_here(current_floorplan.you_are_here.as_ref(), floorplan);
         let new_previous_room = current_floorplan.you_are_here.clone();
 
@@ -70,7 +70,7 @@ fn process_floorplan_event(
             floorplan: Some(floorplan.clone()),
             refreshed: time.elapsed(),
             modified: time.elapsed(),
-            you_are_here: new_you_are_here,
+            you_are_here: updated_current_room,
             previous_room: new_previous_room,
         };
 
