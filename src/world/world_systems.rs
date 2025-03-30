@@ -62,16 +62,16 @@ fn process_floorplan_event(
 ) -> bool {
     if current_floorplan.floorplan.as_ref() != Some(floorplan) {
         debug!("Floorplan changed");
-        let you_are_here =
+        let new_you_are_here =
             determine_you_are_here(current_floorplan.you_are_here.as_ref(), floorplan);
-        let previous_room = current_floorplan.you_are_here.clone();
+        let new_previous_room = current_floorplan.you_are_here.clone();
 
         *current_floorplan = CurrentFloorPlan {
             floorplan: Some(floorplan.clone()),
             refreshed: time.elapsed(),
             modified: time.elapsed(),
-            you_are_here,
-            previous_room,
+            you_are_here: new_you_are_here,
+            previous_room: new_previous_room,
         };
 
         return true;
@@ -137,6 +137,9 @@ pub fn spawn_world(
             if let Some(room) = floorplan.graph.node_weight(node_index) {
                 if connected_rooms_and_doors.contains_key(&node_index) {
                     if let Some(door) = connected_rooms_and_doors.remove(&node_index) {
+                        // if this is the room we just came from then it is an exit
+                        let is_exit = Some(room) == previous_room.as_ref();
+
                         // is a connected room - we want to spawn a door
                         spawn_connected_room(
                             &mut commands,
@@ -145,7 +148,7 @@ pub fn spawn_world(
                             node_index,
                             room,
                             door.clone(),
-                            Some(room) == previous_room.as_ref(),
+                            is_exit,
                         );
                     }
                 } else {
@@ -171,6 +174,7 @@ fn spawn_connected_room(
     node_index: NodeIndex,
     room: &Room,
     door: Door,
+    // Whether this room is the previous room
     is_exit: bool,
 ) {
     debug!("Spawning connected room");
