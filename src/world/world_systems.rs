@@ -61,23 +61,22 @@ fn process_floorplan_event(
     floorplan: &FloorPlan,
     time: &Res<Time>,
 ) -> bool {
-    if current_floorplan.floorplan.as_ref() != Some(floorplan) {
-        debug!("Floorplan changed");
-        let updated_current_room =
-            determine_you_are_here(current_floorplan.you_are_here.as_ref(), floorplan);
-        let new_previous_room = current_floorplan.you_are_here.clone();
-
-        *current_floorplan = CurrentFloorPlan {
-            floorplan: Some(floorplan.clone()),
-            refreshed: time.elapsed(),
-            modified: time.elapsed(),
-            you_are_here: updated_current_room,
-            previous_room: new_previous_room,
-        };
-
-        return true;
+    if current_floorplan.floorplan.as_ref() == Some(floorplan) {
+        return false;
     }
-    false
+
+    let updated_current_room =
+        determine_you_are_here(current_floorplan.you_are_here.as_ref(), floorplan);
+    let new_previous_room = current_floorplan.you_are_here.clone();
+
+    *current_floorplan = CurrentFloorPlan {
+        floorplan: Some(floorplan.clone()),
+        refreshed: time.elapsed(),
+        modified: time.elapsed(),
+        you_are_here: updated_current_room,
+        previous_room: new_previous_room,
+    };
+    true
 }
 
 fn determine_you_are_here(
@@ -164,6 +163,7 @@ pub fn spawn_world(
 
         debug!("Spawned world with {} rooms", floorplan.graph.node_count());
     }
+    warn!("Transitioning to TransitioningIn");
     next_state.set(GameState::TransitioningIn);
 }
 
@@ -307,7 +307,8 @@ pub fn platform_transition_system(
         // Check if the platform is off-screen (e.g., y > 1000.0)
         if transform.translation.y > transition.target_y {
             // Transition is complete for this entity
-            commands.entity(entity).remove::<PlatformTransition>();
+            //commands.entity(entity).remove::<PlatformTransition>();
+            commands.entity(entity).despawn();
         } else {
             // At least one platform is still transitioning
             transitions_remaining = true;
