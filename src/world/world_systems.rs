@@ -163,7 +163,6 @@ pub fn spawn_world(
 
         debug!("Spawned world with {} rooms", floorplan.graph.node_count());
     }
-    warn!("Transitioning to TransitioningIn");
     next_state.set(GameState::TransitioningIn);
 }
 
@@ -294,33 +293,23 @@ pub fn platform_transition_system(
     mut query: Query<(Entity, &mut Transform, &PlatformTransition)>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
-    state: Res<State<GameState>>,
 ) {
     let mut transitions_remaining = false;
-    let mut processing = false;
 
     for (entity, mut transform, transition) in &mut query {
-        processing = true;
         // Move the platform upward
         transform.translation.y += transition.speed;
 
         // Check if the platform is off-screen (e.g., y > 1000.0)
         if transform.translation.y > transition.target_y {
             // Transition is complete for this entity
-            //commands.entity(entity).remove::<PlatformTransition>();
             commands.entity(entity).despawn();
         } else {
             // At least one platform is still transitioning
             transitions_remaining = true;
         }
     }
-    // this is a workaround until the schedule bug is fixed - for some reason we are not called
-    // when in TransitioningIn state
-    if !processing && *state.get() != GameState::TransitioningIn {
-        return;
-    }
 
-    // If no transitions are remaining, set the game state and stop processing
     if !transitions_remaining {
         next_state.set(GameState::InGame);
     }
