@@ -16,9 +16,15 @@ pub fn handle_pause_events(
 ) {
     if keyboard_input.just_pressed(KeyCode::Escape) {
         match state.get() {
-            GameState::InGame => next_state.set(GameState::Paused),
-            GameState::Paused => next_state.set(GameState::InGame),
-            e => warn!("Unexpected state: {e:?}"),
+            GameState::InGame => {
+                // Pause the game
+                next_state.set(GameState::Paused);
+            }
+            GameState::Paused => {
+                // Resume the game
+                next_state.set(GameState::InGame);
+            }
+            _ => (),
         }
     } else if keyboard_input.just_pressed(KeyCode::KeyQ) {
         // exit the game
