@@ -293,22 +293,25 @@ pub fn platform_transition_system(
     mut query: Query<(Entity, &mut Transform, &PlatformTransition)>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
+    mut removed_transitions: RemovedComponents<PlatformTransition>,
 ) {
     let mut transitions_remaining = false;
 
     for (entity, mut transform, transition) in query.iter_mut() {
+        // Move the platform upward
         transform.translation.y += transition.speed;
 
-        if transform.translation.y > transition.target_y {
-            //commands.entity(entity).remove::<PlatformTransition>();
-            commands.entity(entity).despawn();
+        // Check if the platform is off-screen (e.g., y > 1000.0)
+        if transform.translation.y > 1000.0 {
+            // Transition is complete for this entity
+            commands.entity(entity).remove::<PlatformTransition>();
         } else {
+            // At least one platform is still transitioning
             transitions_remaining = true;
         }
     }
-    // BUG!  it never gets into InGame
 
-    if !transitions_remaining {
+    if !transitions_remaining && removed_transitions.is_empty() {
         next_state.set(GameState::InGame);
     }
 }
