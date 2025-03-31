@@ -15,11 +15,7 @@ impl Plugin for PlayerPlugin {
             .add_systems(Startup, spawn_player)
             .add_systems(
                 Update,
-                (
-                    player_movement.after(check_grounded),
-                    check_grounded,
-                    detect_enter_door,
-                ),
+                (check_grounded, player_movement, detect_enter_door).chain(),
             );
     }
 }

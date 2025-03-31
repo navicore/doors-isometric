@@ -189,6 +189,7 @@ fn handle_door_entry(
             ..Default::default()
         };
 
-        next_state.set(GameState::Transitioning);
+        debug!("Entering room: {:?}", room);
+        next_state.set(GameState::TransitioningOut);
     }
 }

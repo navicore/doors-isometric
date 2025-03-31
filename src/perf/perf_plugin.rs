@@ -1,5 +1,5 @@
 use super::perf_component::{
-    PlayerIsGrounded, RoomName, TimeInRoom, TimeSinceLastFloorplanModified,
+    GameStateText, PlayerIsGrounded, RoomName, TimeInRoom, TimeSinceLastFloorplanModified,
     TimeSinceLastFloorplanRefresh,
 };
 use super::perf_system::{toggle_builtins, toggle_customs};
@@ -32,6 +32,7 @@ impl Plugin for PerfPlugin {
             .add_perf_ui_simple_entry::<TimeInRoom>()
             .add_perf_ui_simple_entry::<RoomName>()
             .add_perf_ui_simple_entry::<PlayerIsGrounded>()
+            .add_perf_ui_simple_entry::<GameStateText>()
             .add_systems(
                 Update,
                 toggle_customs.before(iyes_perf_ui::PerfUiSet::Setup),

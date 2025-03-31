@@ -1,3 +1,4 @@
+use super::perf_component::GameStateText;
 use super::perf_component::PlayerIsGrounded;
 use super::perf_component::RoomName;
 use super::perf_component::SystemMonitor;
@@ -48,6 +49,7 @@ pub fn toggle_customs(
                 TimeInRoom::default(),
                 RoomName::default(),
                 PlayerIsGrounded::default(),
+                GameStateText::default(),
             ));
         }
     }

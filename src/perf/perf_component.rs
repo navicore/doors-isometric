@@ -1,4 +1,5 @@
 use crate::player::player_component::GroundedState;
+use crate::state::GameState;
 use crate::world::world_component::CurrentFloorPlan;
 use bevy::ecs::system::lifetimeless::SRes;
 use bevy::ecs::system::SystemParam;
@@ -435,6 +436,57 @@ impl PerfUiEntry for PlayerIsGrounded {
         grounded_state: &mut <Self::SystemParam as SystemParam>::Item<'_, '_>,
     ) -> Option<Self::Value> {
         Some(grounded_state.0)
+    }
+
+    fn format_value(&self, value: &Self::Value) -> String {
+        value.to_string()
+    }
+
+    fn value_color(&self, _value: &Self::Value) -> Option<Color> {
+        None
+    }
+
+    fn value_highlight(&self, _value: &Self::Value) -> bool {
+        false
+    }
+}
+
+#[derive(Component)]
+#[require(PerfUiRoot)]
+pub struct GameStateText {
+    pub sort_key: i32,
+}
+
+impl Default for GameStateText {
+    fn default() -> Self {
+        Self {
+            sort_key: iyes_perf_ui::utils::next_sort_key(),
+        }
+    }
+}
+
+impl PerfUiEntry for GameStateText {
+    type Value = String;
+    type SystemParam = SRes<State<GameState>>;
+
+    fn label(&self) -> &'static str {
+        "Game State"
+    }
+
+    fn sort_key(&self) -> i32 {
+        self.sort_key
+    }
+
+    fn update_value(
+        &self,
+        state: &mut <Self::SystemParam as SystemParam>::Item<'_, '_>,
+    ) -> Option<Self::Value> {
+        match state.get() {
+            GameState::InGame => Some("In Game".to_string()),
+            GameState::Paused => Some("Paused".to_string()),
+            GameState::TransitioningIn => Some("Transitioning In".to_string()),
+            GameState::TransitioningOut => Some("Transitioning Out".to_string()),
+        }
     }
 
     fn format_value(&self, value: &Self::Value) -> String {
