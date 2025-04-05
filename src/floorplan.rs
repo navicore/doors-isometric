@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use bevy::prelude::{Component, Event, States};
+use bevy::prelude::*;
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 use std::collections::HashMap;
@@ -48,7 +48,21 @@ impl std::hash::Hash for FloorPlan {
 
 impl PartialEq for FloorPlan {
     fn eq(&self, other: &Self) -> bool {
-        self.room_index_map == other.room_index_map && self.start_room_id == other.start_room_id
+        if self.start_room_id != other.start_room_id {
+            return false;
+        }
+
+        let self_count = self.graph.raw_nodes().iter().count();
+        let other_count = other.graph.raw_nodes().iter().count();
+        if self_count != other_count {
+            return false;
+        }
+
+        if self.graph.raw_edges().iter().count() != other.graph.raw_edges().iter().count() {
+            return false;
+        }
+
+        true
     }
 }
 
@@ -334,5 +348,33 @@ mod tests {
 
         floor_plan.set_start_room(&room2.id).unwrap();
         assert_eq!(floor_plan.get_start_room().unwrap().name, "Room 2");
+    }
+
+    #[test]
+    fn test_plan_eq() {
+        let mut plan1 = FloorPlan::new();
+
+        let room1 = Room {
+            id: "1".to_string(),
+            name: "Room 1".to_string(),
+        };
+        let room2 = Room {
+            id: "2".to_string(),
+            name: "Room 2".to_string(),
+        };
+        let room2a = room2.clone();
+        assert!(room2.eq(&room2a));
+
+        plan1.add_room(room1.clone());
+        plan1.add_room(room2.clone());
+
+        let mut plan2 = plan1.clone();
+        assert!(plan1.eq(&plan2));
+
+        plan1.add_room(room2.clone());
+        assert!(!plan1.eq(&plan2));
+
+        plan2.add_room(room1.clone());
+        assert!(plan1.eq(&plan2));
     }
 }

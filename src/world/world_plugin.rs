@@ -15,13 +15,10 @@ impl Plugin for WorldPlugin {
                 Update,
                 handle_floor_plan_event.run_if(in_state(GameState::InGame)),
             )
+            .add_systems(OnEnter(GameState::TransitioningIn), spawn_world)
             .add_systems(
                 Update,
-                spawn_world.run_if(in_state(GameState::TransitioningOut)),
-            )
-            .add_systems(
-                Update,
-                platform_transition_system.run_if(in_state(GameState::TransitioningIn)),
+                platform_transition_system.run_if(in_state(GameState::TransitioningOut)),
             );
     }
 }

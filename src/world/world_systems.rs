@@ -57,26 +57,22 @@ fn process_floorplan_event(
     floorplan: &FloorPlan,
     time: &Res<Time>,
 ) -> bool {
-    if current_floorplan.floorplan.as_ref() == Some(floorplan) {
-        return false;
+    if current_floorplan.floorplan.is_none() {
+        current_floorplan.floorplan = Some(floorplan.clone());
+        current_floorplan.you_are_here = determine_you_are_here(None, floorplan);
+        current_floorplan.previous_room = None;
+        return true;
+    }
+    // if current floor plan has changed then we need to update the current floor plan
+    if let Some(plan) = &current_floorplan.floorplan {
+        if plan != floorplan {
+            current_floorplan.floorplan = Some(floorplan.clone());
+            current_floorplan.modified = time.elapsed();
+            return true;
+        }
     }
 
-    let updated_current_room =
-        determine_you_are_here(current_floorplan.you_are_here.as_ref(), floorplan);
-    let new_previous_room = if updated_current_room == current_floorplan.you_are_here {
-        current_floorplan.previous_room.clone()
-    } else {
-        current_floorplan.you_are_here.clone()
-    };
-
-    *current_floorplan = CurrentFloorPlan {
-        floorplan: Some(floorplan.clone()),
-        refreshed: time.elapsed(),
-        modified: time.elapsed(),
-        you_are_here: updated_current_room,
-        previous_room: new_previous_room,
-    };
-    true
+    false
 }
 
 fn determine_you_are_here(
@@ -85,7 +81,6 @@ fn determine_you_are_here(
 ) -> Option<Room> {
     if current_you_are_here.is_none() {
         if let Ok(start_room) = floorplan.get_start_room() {
-            warn!("No current room found, using start room: {:?}", start_room);
             return Some(start_room.clone());
         }
     }
@@ -167,7 +162,7 @@ pub fn spawn_world(
 
         debug!("Spawned world with {} rooms", floorplan.graph.node_count());
     }
-    next_state.set(GameState::TransitioningIn);
+    next_state.set(GameState::InGame);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -334,6 +329,6 @@ pub fn platform_transition_system(
     }
 
     if !transitions_remaining {
-        next_state.set(GameState::InGame);
+        next_state.set(GameState::TransitioningIn);
     }
 }

@@ -7,8 +7,8 @@ pub enum GameState {
     #[default]
     InGame,
     Paused,
-    TransitioningIn,
     TransitioningOut,
+    TransitioningIn,
 }
 
 #[derive(Debug, Component)]
