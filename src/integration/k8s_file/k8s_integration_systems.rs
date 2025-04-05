@@ -202,11 +202,11 @@ mod tests {
 
     #[test]
     fn test_floorplan_equivalence() {
-        // if let Ok(plan1) = generate_k8s_floorplan_from_file() {
-        //     let plan2 = plan1.clone();
-        //     assert!(plan1 == plan2, "Floorplans are not equivalent");
-        // } else {
-        //     panic!("Failed to generate floorplan");
-        // }
+        if let Ok(plan1) = generate_k8s_floorplan_from_file() {
+            let plan2 = plan1.clone();
+            assert!(plan1 == plan2, "Floorplans are not equivalent");
+        } else {
+            panic!("Failed to generate floorplan");
+        }
     }
 }

@@ -364,6 +364,7 @@ mod tests {
         };
         let room2a = room2.clone();
         assert!(room2.eq(&room2a));
+        assert!(Some(room2.clone()).eq(&Some(room2a)));
 
         plan1.add_room(room1.clone());
         plan1.add_room(room2.clone());
@@ -376,5 +377,6 @@ mod tests {
 
         plan2.add_room(room1.clone());
         assert!(plan1.eq(&plan2));
+        assert!(Some(plan1).eq(&Some(plan2)));
     }
 }
