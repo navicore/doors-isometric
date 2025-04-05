@@ -12,19 +12,20 @@ opt-level = 3
 [dependencies]
 avian3d = "0.2"
 bevy = "0.15"
+bevy-tokio-tasks = "0.15"
 bevy_embedded_assets = "0.12"
-petgraph = "0.7"
+bevy_mod_scripting = { version = "0.9.0", features = ["lua54"]}
 clap = { version = "4", features = ["derive", "color"] }
 iyes_perf_ui = "0.4"
-leafwing-input-manager = "0.16"
+jsonpath_lib = "0.3"
 k8s-openapi = { version = "0.24", features = ["latest"] }
 kube = { version = "0.99", features = ["runtime", "derive"] }
+leafwing-input-manager = "0.16"
+petgraph = "0.7"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 tokio = { version = "1", features = ["full", "macros"] }
-bevy-tokio-tasks = "0.15"
-jsonpath_lib = "0.3"
 
 [dev-dependencies]
 bevy_dylib = "0.15"

@@ -28,3 +28,24 @@ pub struct PlatformTransition {
     pub target_y: f32,
     pub speed: f32,
 }
+
+#[derive(Resource, Debug)]
+pub struct WorldConfig {
+    pub room_x: f32,
+    pub room_y: f32,
+    pub room_z: f32,
+    pub placeholder_y: f32,
+    pub exit_room_y: f32,
+}
+
+impl Default for WorldConfig {
+    fn default() -> Self {
+        Self {
+            room_x: 4.0,
+            room_y: 4.0,
+            room_z: 4.0,
+            placeholder_y: 0.1,
+            exit_room_y: 4000.0,
+        }
+    }
+}

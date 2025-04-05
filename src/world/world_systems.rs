@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use super::world_component::{CurrentFloorPlan, Floor, PlatformMarker, PlatformTransition};
+use super::world_component::{
+    CurrentFloorPlan, Floor, PlatformMarker, PlatformTransition, WorldConfig,
+};
 use crate::{
     floorplan::{Door, FloorPlan, FloorPlanEvent, Room},
     state::GameState,
@@ -13,12 +15,6 @@ use bevy::{
     prelude::*,
 };
 use petgraph::prelude::*;
-
-const ROOM_X_LEN: f32 = 4.0;
-const ROOM_Y_LEN: f32 = 4.0;
-const ROOM_Z_LEN: f32 = 4.0;
-const PLACEHOLDER_Y_LEN: f32 = 0.1;
-const EXIT_Y_LEN: f32 = 4000.0;
 
 const FLOOR_THICKNESS: f32 = 3.0;
 const N_ROWS: usize = 5;
@@ -67,7 +63,11 @@ fn process_floorplan_event(
 
     let updated_current_room =
         determine_you_are_here(current_floorplan.you_are_here.as_ref(), floorplan);
-    let new_previous_room = current_floorplan.you_are_here.clone();
+    let new_previous_room = if updated_current_room == current_floorplan.you_are_here {
+        current_floorplan.previous_room.clone()
+    } else {
+        current_floorplan.you_are_here.clone()
+    };
 
     *current_floorplan = CurrentFloorPlan {
         floorplan: Some(floorplan.clone()),
@@ -85,6 +85,7 @@ fn determine_you_are_here(
 ) -> Option<Room> {
     if current_you_are_here.is_none() {
         if let Ok(start_room) = floorplan.get_start_room() {
+            warn!("No current room found, using start room: {:?}", start_room);
             return Some(start_room.clone());
         }
     }
@@ -92,6 +93,7 @@ fn determine_you_are_here(
 }
 
 pub fn spawn_world(
+    world_config: Res<WorldConfig>,
     mut commands: Commands,
     platform_query: Query<(Entity, &Transform), With<PlatformMarker>>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -140,6 +142,7 @@ pub fn spawn_world(
 
                         // is a connected room - we want to spawn a door
                         spawn_connected_room(
+                            &world_config,
                             &mut commands,
                             &mut meshes,
                             &mut materials,
@@ -151,6 +154,7 @@ pub fn spawn_world(
                     }
                 } else {
                     spawn_unconnected_room(
+                        &world_config,
                         &mut commands,
                         &mut meshes,
                         &mut materials,
@@ -166,26 +170,35 @@ pub fn spawn_world(
     next_state.set(GameState::TransitioningIn);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_connected_room(
+    world_config: &WorldConfig,
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     node_index: NodeIndex,
     room: &Room,
     door: Door,
-    // Whether this room is the previous room
-    is_exit: bool,
+    is_exit: bool, // Whether this room is the previous room
 ) {
     debug!("Spawning connected room");
 
-    let room_height = if is_exit { EXIT_Y_LEN } else { ROOM_Y_LEN };
+    let room_height = if is_exit {
+        world_config.exit_room_y
+    } else {
+        world_config.room_y
+    };
 
-    let shape = meshes.add(Cuboid::new(ROOM_X_LEN, room_height, ROOM_Z_LEN));
+    let shape = meshes.add(Cuboid::new(
+        world_config.room_x,
+        room_height,
+        world_config.room_z,
+    ));
     let mat = materials.add(Color::from(calculate_room_color(&room.name)));
     let position = calculate_room_position(node_index, 1.8);
-    let collider = Collider::cuboid(ROOM_X_LEN, room_height, ROOM_Z_LEN);
+    let collider = Collider::cuboid(world_config.room_x, room_height, world_config.room_z);
 
-    let door = spawn_connected_room_door(commands, meshes, materials, door);
+    let door = spawn_connected_room_door(world_config, commands, meshes, materials, door);
 
     commands
         .spawn((
@@ -201,6 +214,7 @@ fn spawn_connected_room(
 }
 
 fn spawn_connected_room_door(
+    world_config: &WorldConfig,
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
@@ -208,7 +222,7 @@ fn spawn_connected_room_door(
 ) -> Entity {
     debug!("Spawning connected room door");
 
-    let room_size = ROOM_Y_LEN;
+    let room_size = world_config.room_y;
     let door_size = Vec3::new(2.0, 3.0, 0.1); // Width, height, depth of the door
     let door_position = Vec3::new(0.0, 0.0, -(room_size / 2.0 + door_size.z / 2.0)); // Centered on the front face
 
@@ -226,6 +240,7 @@ fn spawn_connected_room_door(
 }
 
 fn spawn_unconnected_room(
+    world_config: &WorldConfig,
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
@@ -234,10 +249,18 @@ fn spawn_unconnected_room(
 ) {
     debug!("Spawning unconnected room");
 
-    let shape = meshes.add(Cuboid::new(ROOM_X_LEN, PLACEHOLDER_Y_LEN, ROOM_Z_LEN));
+    let shape = meshes.add(Cuboid::new(
+        world_config.room_x,
+        world_config.placeholder_y,
+        world_config.room_z,
+    ));
     let mat = materials.add(Color::from(GRAY_600));
     let position = calculate_room_position(node_index, 0.0);
-    let collider = Collider::cuboid(ROOM_X_LEN, PLACEHOLDER_Y_LEN, ROOM_Z_LEN);
+    let collider = Collider::cuboid(
+        world_config.room_x,
+        world_config.placeholder_y,
+        world_config.room_z,
+    );
 
     commands.spawn((
         Mesh3d(shape),
