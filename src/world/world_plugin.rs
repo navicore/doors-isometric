@@ -11,7 +11,10 @@ impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(CurrentFloorPlan::default())
             .insert_resource(WorldConfig::default())
-            .add_systems(Update, handle_floor_plan_event)
+            .add_systems(
+                Update,
+                handle_floor_plan_event.run_if(in_state(GameState::InGame)),
+            )
             .add_systems(
                 Update,
                 spawn_world.run_if(in_state(GameState::TransitioningOut)),
