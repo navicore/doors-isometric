@@ -9,4 +9,9 @@ return {
 		n_rows = 5,
 		spacing = 8.0,
 	},
+	player_config = {
+		x = 1.2,
+		y = 1.2,
+		z = 1.2,
+	},
 }
