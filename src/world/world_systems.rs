@@ -319,15 +319,15 @@ pub fn platform_transitioning_out(
     let mut transitions_remaining = false;
 
     for (entity, mut transform, transition) in &mut query {
-        // Move the platform upward
+        // Move the entity upward
         transform.translation.y += transition.speed;
 
-        // Check if the platform is off-screen (e.g., y > 1000.0)
+        // Check if the platform is off-screen
         if transform.translation.y > transition.target_y {
             // Transition is complete for this entity
             commands.entity(entity).despawn();
         } else {
-            // At least one platform is still transitioning
+            // At least one platform object is still transitioning
             transitions_remaining = true;
         }
     }
