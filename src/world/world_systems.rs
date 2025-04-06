@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::world_component::{
     CurrentFloorPlan, Floor, PlatformMarker, PlatformTransition, WorldConfig,
 };
@@ -15,10 +13,7 @@ use bevy::{
     prelude::*,
 };
 use petgraph::prelude::*;
-
-const FLOOR_THICKNESS: f32 = 3.0;
-const N_ROWS: usize = 5;
-const SPACING: f32 = 8.0;
+use std::collections::HashMap;
 
 fn calculate_room_color(name: &str) -> Srgba {
     match name {
@@ -119,12 +114,13 @@ pub fn spawn_world(
         }
 
         spawn_floor(
+            &world_config,
             &mut commands,
             &mut meshes,
             &mut materials,
             floorplan.graph.node_indices().count(),
-            5,
-            8.0,
+            world_config.n_rows,
+            world_config.spacing,
         );
 
         // Visualize Rooms
@@ -190,7 +186,7 @@ fn spawn_connected_room(
         world_config.room_z,
     ));
     let mat = materials.add(Color::from(calculate_room_color(&room.name)));
-    let position = calculate_room_position(node_index, 1.8);
+    let position = calculate_room_position(world_config, node_index, 1.8);
     let collider = Collider::cuboid(world_config.room_x, room_height, world_config.room_z);
 
     let door = spawn_connected_room_door(world_config, commands, meshes, materials, door);
@@ -250,7 +246,7 @@ fn spawn_unconnected_room(
         world_config.room_z,
     ));
     let mat = materials.add(Color::from(GRAY_600));
-    let position = calculate_room_position(node_index, 0.0);
+    let position = calculate_room_position(world_config, node_index, 0.0);
     let collider = Collider::cuboid(
         world_config.room_x,
         world_config.placeholder_y,
@@ -270,6 +266,7 @@ fn spawn_unconnected_room(
 
 #[allow(clippy::cast_precision_loss)]
 fn spawn_floor(
+    world_config: &WorldConfig,
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
@@ -280,7 +277,7 @@ fn spawn_floor(
     let rows = (num_rooms as f32 / columns as f32).ceil();
     let floor_width = columns as f32 * room_spacing;
     let floor_depth = rows * room_spacing;
-    let floor_thickness = FLOOR_THICKNESS;
+    let floor_thickness = world_config.floor_thickness;
 
     let floor_position = Vec3::new(
         (columns as f32 - 1.0) * room_spacing / 2.0,
@@ -301,9 +298,9 @@ fn spawn_floor(
 }
 
 #[allow(clippy::cast_precision_loss)]
-fn calculate_room_position(index: NodeIndex, yoffset: f32) -> Vec3 {
-    let x = (index.index() % N_ROWS) as f32 * SPACING;
-    let z = (index.index() / N_ROWS) as f32 * SPACING; // adjust 'spacing' as needed
+fn calculate_room_position(world_config: &WorldConfig, index: NodeIndex, yoffset: f32) -> Vec3 {
+    let x = (index.index() % world_config.n_rows) as f32 * world_config.spacing;
+    let z = (index.index() / world_config.n_rows) as f32 * world_config.spacing; // adjust 'spacing' as needed
     Vec3::new(x, 0.0 + yoffset, z)
 }
 

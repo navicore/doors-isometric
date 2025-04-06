@@ -36,6 +36,9 @@ pub struct WorldConfig {
     pub room_z: f32,
     pub placeholder_y: f32,
     pub exit_room_y: f32,
+    pub floor_thickness: f32,
+    pub n_rows: usize,
+    pub spacing: f32,
 }
 
 impl Default for WorldConfig {
@@ -46,6 +49,9 @@ impl Default for WorldConfig {
             room_z: 4.0,
             placeholder_y: 0.1,
             exit_room_y: 4000.0,
+            floor_thickness: 3.0,
+            n_rows: 5,
+            spacing: 8.0,
         }
     }
 }
