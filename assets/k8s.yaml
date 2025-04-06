@@ -1,0 +1,4879 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    annotations:
+      clusterlint.digitalocean.com/disabled-checks: privileged-containers,non-root-user,resource-requirements,hostpath-volume
+      container.apparmor.security.beta.kubernetes.io/apply-sysctl-overwrites: unconfined
+      container.apparmor.security.beta.kubernetes.io/cilium-agent: unconfined
+      container.apparmor.security.beta.kubernetes.io/clean-cilium-state: unconfined
+      container.apparmor.security.beta.kubernetes.io/config: unconfined
+      container.apparmor.security.beta.kubernetes.io/delay-cilium-for-ccm: unconfined
+      container.apparmor.security.beta.kubernetes.io/install-cni-binaries: unconfined
+      container.apparmor.security.beta.kubernetes.io/mount-bpf-fs: unconfined
+      container.apparmor.security.beta.kubernetes.io/mount-cgroup: unconfined
+      kubectl.kubernetes.io/default-container: cilium-agent
+      prometheus.io/port: "9090"
+      prometheus.io/scrape: "true"
+    creationTimestamp: "2025-01-18T14:30:26Z"
+    generateName: cilium-
+    labels:
+      app.kubernetes.io/name: cilium-agent
+      app.kubernetes.io/part-of: cilium
+      controller-revision-hash: dcfdb57fc
+      doks.digitalocean.com/managed: "true"
+      k8s-app: cilium
+      kubernetes.io/cluster-service: "true"
+      pod-template-generation: "1"
+    name: cilium-z5pm7
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: DaemonSet
+      name: cilium
+      uid: 613a2de3-dea5-462a-a741-95b2b4d20cde
+    resourceVersion: "948"
+    uid: c78856a7-8f4e-40b8-a632-d63de509b029
+  spec:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchFields:
+            - key: metadata.name
+              operator: In
+              values:
+              - default-pool-eil3q
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              k8s-app: cilium
+          topologyKey: kubernetes.io/hostname
+    automountServiceAccountToken: true
+    containers:
+    - args:
+      - --config-dir=/tmp/cilium/config-map
+      - --k8s-api-server=https://f43d5663-ddaa-413a-9dff-caad3dbd2467.k8s.ondigitalocean.com
+      - --ipv4-native-routing-cidr=10.244.0.0/16
+      command:
+      - cilium-agent
+      env:
+      - name: K8S_NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: CILIUM_K8S_NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: CILIUM_CLUSTERMESH_CONFIG
+        value: /var/lib/cilium/clustermesh/
+      - name: GOMEMLIMIT
+        valueFrom:
+          resourceFieldRef:
+            divisor: "1"
+            resource: limits.memory
+      - name: KUBERNETES_SERVICE_HOST
+        value: f43d5663-ddaa-413a-9dff-caad3dbd2467.k8s.ondigitalocean.com
+      - name: KUBERNETES_SERVICE_PORT
+        value: "443"
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imagePullPolicy: IfNotPresent
+      lifecycle:
+        postStart:
+          exec:
+            command:
+            - bash
+            - -c
+            - |
+              set -o errexit
+              set -o pipefail
+              set -o nounset
+
+              # When running in AWS ENI mode, it's likely that 'aws-node' has
+              # had a chance to install SNAT iptables rules. These can result
+              # in dropped traffic, so we should attempt to remove them.
+              # We do it using a 'postStart' hook since this may need to run
+              # for nodes which might have already been init'ed but may still
+              # have dangling rules. This is safe because there are no
+              # dependencies on anything that is part of the startup script
+              # itself, and can be safely run multiple times per node (e.g. in
+              # case of a restart).
+              if [[ "$(iptables-save | grep -E -c 'AWS-SNAT-CHAIN|AWS-CONNMARK-CHAIN')" != "0" ]];
+              then
+                  echo 'Deleting iptables rules created by the AWS CNI VPC plugin'
+                  iptables-save | grep -E -v 'AWS-SNAT-CHAIN|AWS-CONNMARK-CHAIN' | iptables-restore
+              fi
+              echo 'Done!'
+        preStop:
+          exec:
+            command:
+            - /cni-uninstall.sh
+      livenessProbe:
+        failureThreshold: 10
+        httpGet:
+          host: 127.0.0.1
+          httpHeaders:
+          - name: brief
+            value: "true"
+          path: /healthz
+          port: 9879
+          scheme: HTTP
+        initialDelaySeconds: 120
+        periodSeconds: 30
+        successThreshold: 1
+        timeoutSeconds: 5
+      name: cilium-agent
+      ports:
+      - containerPort: 4244
+        hostPort: 4244
+        name: peer-service
+        protocol: TCP
+      - containerPort: 9090
+        hostPort: 9090
+        name: prometheus
+        protocol: TCP
+      readinessProbe:
+        failureThreshold: 3
+        httpGet:
+          host: 127.0.0.1
+          httpHeaders:
+          - name: brief
+            value: "true"
+          path: /healthz
+          port: 9879
+          scheme: HTTP
+        periodSeconds: 30
+        successThreshold: 1
+        timeoutSeconds: 5
+      resources:
+        requests:
+          cpu: 300m
+          memory: 300Mi
+      securityContext:
+        capabilities:
+          add:
+          - CHOWN
+          - KILL
+          - NET_ADMIN
+          - NET_RAW
+          - IPC_LOCK
+          - SYS_MODULE
+          - SYS_ADMIN
+          - SYS_RESOURCE
+          - DAC_OVERRIDE
+          - FOWNER
+          - SETGID
+          - SETUID
+          drop:
+          - ALL
+        seLinuxOptions:
+          level: s0
+          type: spc_t
+      startupProbe:
+        failureThreshold: 105
+        httpGet:
+          host: 127.0.0.1
+          httpHeaders:
+          - name: brief
+            value: "true"
+          path: /healthz
+          port: 9879
+          scheme: HTTP
+        initialDelaySeconds: 5
+        periodSeconds: 2
+        successThreshold: 1
+        timeoutSeconds: 1
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: FallbackToLogsOnError
+      volumeMounts:
+      - mountPath: /host/proc/sys/net
+        name: host-proc-sys-net
+      - mountPath: /host/proc/sys/kernel
+        name: host-proc-sys-kernel
+      - mountPath: /sys/fs/bpf
+        mountPropagation: HostToContainer
+        name: bpf-maps
+      - mountPath: /var/run/cilium
+        name: cilium-run
+      - mountPath: /host/etc/cni/net.d
+        name: etc-cni-netd
+      - mountPath: /var/lib/cilium/clustermesh
+        name: clustermesh-secrets
+        readOnly: true
+      - mountPath: /etc/config
+        name: ip-masq-agent
+        readOnly: true
+      - mountPath: /lib/modules
+        name: lib-modules
+        readOnly: true
+      - mountPath: /run/xtables.lock
+        name: xtables-lock
+      - mountPath: /var/lib/cilium/tls/hubble
+        name: hubble-tls
+        readOnly: true
+      - mountPath: /tmp
+        name: tmp
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+    dnsPolicy: ClusterFirst
+    enableServiceLinks: true
+    hostNetwork: true
+    initContainers:
+    - command:
+      - bash
+      - -e
+      - -c
+      - |
+        # This will get the node object for the local node and search through
+        # the assigned addresses in the object in order to check whether CCM
+        # already set the internal AND external IP since cilium needs both
+        # for a clean startup.
+        # The grep matches regardless of the order of IPs.
+        until /host/usr/bin/kubectl get node ${HOSTNAME} -o jsonpath="{.status.addresses[*].type}" | grep -E "InternalIP.*ExternalIP|ExternalIP.*InternalIP"; do echo "waiting for CCM to store internal and external IP addresses in node object: ${HOSTNAME}" && sleep 3; done;
+      env:
+      - name: KUBERNETES_SERVICE_HOST
+        value: f43d5663-ddaa-413a-9dff-caad3dbd2467.k8s.ondigitalocean.com
+      - name: KUBERNETES_SERVICE_PORT
+        value: "443"
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imagePullPolicy: IfNotPresent
+      name: delay-cilium-for-ccm
+      resources:
+        requests:
+          cpu: 100m
+          memory: 100Mi
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /host/usr/bin/kubectl
+        name: host-kubectl
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+    - command:
+      - cilium-dbg
+      - build-config
+      - --source=config-map:cilium-config
+      env:
+      - name: K8S_NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      - name: CILIUM_K8S_NAMESPACE
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: metadata.namespace
+      - name: KUBERNETES_SERVICE_HOST
+        value: f43d5663-ddaa-413a-9dff-caad3dbd2467.k8s.ondigitalocean.com
+      - name: KUBERNETES_SERVICE_PORT
+        value: "443"
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imagePullPolicy: IfNotPresent
+      name: config
+      resources: {}
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: FallbackToLogsOnError
+      volumeMounts:
+      - mountPath: /tmp
+        name: tmp
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+    - command:
+      - sh
+      - -ec
+      - |
+        cp /usr/bin/cilium-mount /hostbin/cilium-mount;
+        nsenter --cgroup=/hostproc/1/ns/cgroup --mount=/hostproc/1/ns/mnt "${BIN_PATH}/cilium-mount" $CGROUP_ROOT;
+        rm /hostbin/cilium-mount
+      env:
+      - name: CGROUP_ROOT
+        value: /run/cilium/cgroupv2
+      - name: BIN_PATH
+        value: /opt/cni/bin
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imagePullPolicy: IfNotPresent
+      name: mount-cgroup
+      resources: {}
+      securityContext:
+        capabilities:
+          add:
+          - SYS_ADMIN
+          - SYS_CHROOT
+          - SYS_PTRACE
+          drop:
+          - ALL
+        seLinuxOptions:
+          level: s0
+          type: spc_t
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: FallbackToLogsOnError
+      volumeMounts:
+      - mountPath: /hostproc
+        name: hostproc
+      - mountPath: /hostbin
+        name: cni-path
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+    - command:
+      - sh
+      - -ec
+      - |
+        cp /usr/bin/cilium-sysctlfix /hostbin/cilium-sysctlfix;
+        nsenter --mount=/hostproc/1/ns/mnt "${BIN_PATH}/cilium-sysctlfix";
+        rm /hostbin/cilium-sysctlfix
+      env:
+      - name: BIN_PATH
+        value: /opt/cni/bin
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imagePullPolicy: IfNotPresent
+      name: apply-sysctl-overwrites
+      resources: {}
+      securityContext:
+        capabilities:
+          add:
+          - SYS_ADMIN
+          - SYS_CHROOT
+          - SYS_PTRACE
+          drop:
+          - ALL
+        seLinuxOptions:
+          level: s0
+          type: spc_t
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: FallbackToLogsOnError
+      volumeMounts:
+      - mountPath: /hostproc
+        name: hostproc
+      - mountPath: /hostbin
+        name: cni-path
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+    - args:
+      - mount | grep "/sys/fs/bpf type bpf" || mount -t bpf bpf /sys/fs/bpf
+      command:
+      - /bin/bash
+      - -c
+      - --
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imagePullPolicy: IfNotPresent
+      name: mount-bpf-fs
+      resources: {}
+      securityContext:
+        privileged: true
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: FallbackToLogsOnError
+      volumeMounts:
+      - mountPath: /sys/fs/bpf
+        mountPropagation: Bidirectional
+        name: bpf-maps
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+    - command:
+      - /init-container.sh
+      env:
+      - name: CILIUM_ALL_STATE
+        valueFrom:
+          configMapKeyRef:
+            key: clean-cilium-state
+            name: cilium-config
+            optional: true
+      - name: CILIUM_BPF_STATE
+        valueFrom:
+          configMapKeyRef:
+            key: clean-cilium-bpf-state
+            name: cilium-config
+            optional: true
+      - name: WRITE_CNI_CONF_WHEN_READY
+        valueFrom:
+          configMapKeyRef:
+            key: write-cni-conf-when-ready
+            name: cilium-config
+            optional: true
+      - name: KUBERNETES_SERVICE_HOST
+        value: f43d5663-ddaa-413a-9dff-caad3dbd2467.k8s.ondigitalocean.com
+      - name: KUBERNETES_SERVICE_PORT
+        value: "443"
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imagePullPolicy: IfNotPresent
+      name: clean-cilium-state
+      resources: {}
+      securityContext:
+        capabilities:
+          add:
+          - NET_ADMIN
+          - SYS_MODULE
+          - SYS_ADMIN
+          - SYS_RESOURCE
+          drop:
+          - ALL
+        seLinuxOptions:
+          level: s0
+          type: spc_t
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: FallbackToLogsOnError
+      volumeMounts:
+      - mountPath: /sys/fs/bpf
+        name: bpf-maps
+      - mountPath: /run/cilium/cgroupv2
+        mountPropagation: HostToContainer
+        name: cilium-cgroup
+      - mountPath: /var/run/cilium
+        name: cilium-run
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+    - command:
+      - /install-plugin.sh
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imagePullPolicy: IfNotPresent
+      name: install-cni-binaries
+      resources:
+        requests:
+          cpu: 100m
+          memory: 10Mi
+      securityContext:
+        capabilities:
+          drop:
+          - ALL
+        seLinuxOptions:
+          level: s0
+          type: spc_t
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: FallbackToLogsOnError
+      volumeMounts:
+      - mountPath: /host/opt/cni/bin
+        name: cni-path
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+    nodeName: default-pool-eil3q
+    nodeSelector:
+      kubernetes.io/os: linux
+    preemptionPolicy: PreemptLowerPriority
+    priority: 2000001000
+    priorityClassName: system-node-critical
+    restartPolicy: Always
+    schedulerName: default-scheduler
+    securityContext:
+      appArmorProfile:
+        type: Unconfined
+    serviceAccount: cilium
+    serviceAccountName: cilium
+    terminationGracePeriodSeconds: 1
+    tolerations:
+    - operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/disk-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/memory-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/pid-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/unschedulable
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/network-unavailable
+      operator: Exists
+    volumes:
+    - hostPath:
+        path: /usr/bin/kubectl
+        type: File
+      name: host-kubectl
+    - emptyDir: {}
+      name: tmp
+    - hostPath:
+        path: /var/run/cilium
+        type: DirectoryOrCreate
+      name: cilium-run
+    - hostPath:
+        path: /sys/fs/bpf
+        type: DirectoryOrCreate
+      name: bpf-maps
+    - hostPath:
+        path: /proc
+        type: Directory
+      name: hostproc
+    - hostPath:
+        path: /run/cilium/cgroupv2
+        type: DirectoryOrCreate
+      name: cilium-cgroup
+    - hostPath:
+        path: /opt/cni/bin
+        type: DirectoryOrCreate
+      name: cni-path
+    - hostPath:
+        path: /etc/cni/net.d
+        type: DirectoryOrCreate
+      name: etc-cni-netd
+    - hostPath:
+        path: /lib/modules
+        type: ""
+      name: lib-modules
+    - hostPath:
+        path: /run/xtables.lock
+        type: FileOrCreate
+      name: xtables-lock
+    - name: clustermesh-secrets
+      projected:
+        defaultMode: 256
+        sources:
+        - secret:
+            name: cilium-clustermesh
+            optional: true
+        - secret:
+            items:
+            - key: tls.key
+              path: common-etcd-client.key
+            - key: tls.crt
+              path: common-etcd-client.crt
+            - key: ca.crt
+              path: common-etcd-client-ca.crt
+            name: clustermesh-apiserver-remote-cert
+            optional: true
+    - configMap:
+        defaultMode: 420
+        items:
+        - key: config
+          path: ip-masq-agent
+        name: ip-masq-agent
+        optional: true
+      name: ip-masq-agent
+    - hostPath:
+        path: /proc/sys/net
+        type: Directory
+      name: host-proc-sys-net
+    - hostPath:
+        path: /proc/sys/kernel
+        type: Directory
+      name: host-proc-sys-kernel
+    - name: hubble-tls
+      projected:
+        defaultMode: 256
+        sources:
+        - secret:
+            items:
+            - key: tls.crt
+              path: server.crt
+            - key: tls.key
+              path: server.key
+            - key: ca.crt
+              path: client-ca.crt
+            name: hubble-server-certs
+            optional: true
+    - name: kube-api-access-84p6h
+      projected:
+        defaultMode: 420
+        sources:
+        - serviceAccountToken:
+            expirationSeconds: 3607
+            path: token
+        - configMap:
+            items:
+            - key: ca.crt
+              path: ca.crt
+            name: kube-root-ca.crt
+        - downwardAPI:
+            items:
+            - fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+              path: namespace
+  status:
+    conditions:
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:30:42Z"
+      status: "True"
+      type: PodReadyToStartContainers
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:30:48Z"
+      status: "True"
+      type: Initialized
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:30:54Z"
+      status: "True"
+      type: Ready
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:30:54Z"
+      status: "True"
+      type: ContainersReady
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:30:26Z"
+      status: "True"
+      type: PodScheduled
+    containerStatuses:
+    - containerID: containerd://fec98d6a0732fa76cbe45f27ab03ce057aaa3efe6446f72241ff0e33f35cda07
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imageID: docker.io/digitalocean/cilium@sha256:6ccb7fc14950a4eaf6f5b4eecd2c10f3da8881694410c09e0450613e817dfa9c
+      lastState: {}
+      name: cilium-agent
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2025-01-18T14:30:48Z"
+      volumeMounts:
+      - mountPath: /host/proc/sys/net
+        name: host-proc-sys-net
+      - mountPath: /host/proc/sys/kernel
+        name: host-proc-sys-kernel
+      - mountPath: /sys/fs/bpf
+        name: bpf-maps
+      - mountPath: /var/run/cilium
+        name: cilium-run
+      - mountPath: /host/etc/cni/net.d
+        name: etc-cni-netd
+      - mountPath: /var/lib/cilium/clustermesh
+        name: clustermesh-secrets
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /etc/config
+        name: ip-masq-agent
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /lib/modules
+        name: lib-modules
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /run/xtables.lock
+        name: xtables-lock
+      - mountPath: /var/lib/cilium/tls/hubble
+        name: hubble-tls
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /tmp
+        name: tmp
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+        recursiveReadOnly: Disabled
+    hostIP: 10.138.200.240
+    hostIPs:
+    - ip: 10.138.200.240
+    initContainerStatuses:
+    - containerID: containerd://35f7258322e9dc80e5f5b93dbf5c22c5a74b70b1debedcedead4717c3f5297b3
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imageID: docker.io/digitalocean/cilium@sha256:6ccb7fc14950a4eaf6f5b4eecd2c10f3da8881694410c09e0450613e817dfa9c
+      lastState: {}
+      name: delay-cilium-for-ccm
+      ready: true
+      restartCount: 0
+      started: false
+      state:
+        terminated:
+          containerID: containerd://35f7258322e9dc80e5f5b93dbf5c22c5a74b70b1debedcedead4717c3f5297b3
+          exitCode: 0
+          finishedAt: "2025-01-18T14:30:41Z"
+          reason: Completed
+          startedAt: "2025-01-18T14:30:41Z"
+      volumeMounts:
+      - mountPath: /host/usr/bin/kubectl
+        name: host-kubectl
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+        recursiveReadOnly: Disabled
+    - containerID: containerd://4b2fc0999a89f10d4a180198624baad2064f0001c9629d7cf66880e297d666bb
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imageID: docker.io/digitalocean/cilium@sha256:6ccb7fc14950a4eaf6f5b4eecd2c10f3da8881694410c09e0450613e817dfa9c
+      lastState: {}
+      name: config
+      ready: true
+      restartCount: 0
+      started: false
+      state:
+        terminated:
+          containerID: containerd://4b2fc0999a89f10d4a180198624baad2064f0001c9629d7cf66880e297d666bb
+          exitCode: 0
+          finishedAt: "2025-01-18T14:30:42Z"
+          reason: Completed
+          startedAt: "2025-01-18T14:30:42Z"
+      volumeMounts:
+      - mountPath: /tmp
+        name: tmp
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+        recursiveReadOnly: Disabled
+    - containerID: containerd://d2db1fd8a5488de111fb87e3fc197333a0b7335f4d336c874b277f834ee9a340
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imageID: docker.io/digitalocean/cilium@sha256:6ccb7fc14950a4eaf6f5b4eecd2c10f3da8881694410c09e0450613e817dfa9c
+      lastState: {}
+      name: mount-cgroup
+      ready: true
+      restartCount: 0
+      started: false
+      state:
+        terminated:
+          containerID: containerd://d2db1fd8a5488de111fb87e3fc197333a0b7335f4d336c874b277f834ee9a340
+          exitCode: 0
+          finishedAt: "2025-01-18T14:30:43Z"
+          reason: Completed
+          startedAt: "2025-01-18T14:30:43Z"
+      volumeMounts:
+      - mountPath: /hostproc
+        name: hostproc
+      - mountPath: /hostbin
+        name: cni-path
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+        recursiveReadOnly: Disabled
+    - containerID: containerd://cbe38fe4a26c8cc75a3857b01e112f60e7eda5539bb23cb697764a30dc862c88
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imageID: docker.io/digitalocean/cilium@sha256:6ccb7fc14950a4eaf6f5b4eecd2c10f3da8881694410c09e0450613e817dfa9c
+      lastState: {}
+      name: apply-sysctl-overwrites
+      ready: true
+      restartCount: 0
+      started: false
+      state:
+        terminated:
+          containerID: containerd://cbe38fe4a26c8cc75a3857b01e112f60e7eda5539bb23cb697764a30dc862c88
+          exitCode: 0
+          finishedAt: "2025-01-18T14:30:44Z"
+          reason: Completed
+          startedAt: "2025-01-18T14:30:44Z"
+      volumeMounts:
+      - mountPath: /hostproc
+        name: hostproc
+      - mountPath: /hostbin
+        name: cni-path
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+        recursiveReadOnly: Disabled
+    - containerID: containerd://6d266c4fa643de961d5b0ff4bcffd3bc10cd0115fece7a91eb035efa25b56e4b
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imageID: docker.io/digitalocean/cilium@sha256:6ccb7fc14950a4eaf6f5b4eecd2c10f3da8881694410c09e0450613e817dfa9c
+      lastState: {}
+      name: mount-bpf-fs
+      ready: true
+      restartCount: 0
+      started: false
+      state:
+        terminated:
+          containerID: containerd://6d266c4fa643de961d5b0ff4bcffd3bc10cd0115fece7a91eb035efa25b56e4b
+          exitCode: 0
+          finishedAt: "2025-01-18T14:30:45Z"
+          reason: Completed
+          startedAt: "2025-01-18T14:30:45Z"
+      volumeMounts:
+      - mountPath: /sys/fs/bpf
+        name: bpf-maps
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+        recursiveReadOnly: Disabled
+    - containerID: containerd://8240be77c0458c33cceac04b9535a3ae8713faa837fd2667935bf434fd6d35a5
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imageID: docker.io/digitalocean/cilium@sha256:6ccb7fc14950a4eaf6f5b4eecd2c10f3da8881694410c09e0450613e817dfa9c
+      lastState: {}
+      name: clean-cilium-state
+      ready: true
+      restartCount: 0
+      started: false
+      state:
+        terminated:
+          containerID: containerd://8240be77c0458c33cceac04b9535a3ae8713faa837fd2667935bf434fd6d35a5
+          exitCode: 0
+          finishedAt: "2025-01-18T14:30:46Z"
+          reason: Completed
+          startedAt: "2025-01-18T14:30:46Z"
+      volumeMounts:
+      - mountPath: /sys/fs/bpf
+        name: bpf-maps
+      - mountPath: /run/cilium/cgroupv2
+        name: cilium-cgroup
+      - mountPath: /var/run/cilium
+        name: cilium-run
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+        recursiveReadOnly: Disabled
+    - containerID: containerd://bb624c676404ca31407310cf3f4c9d5378aa349e96e6d8492d0497d6f423cd4b
+      image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+      imageID: docker.io/digitalocean/cilium@sha256:6ccb7fc14950a4eaf6f5b4eecd2c10f3da8881694410c09e0450613e817dfa9c
+      lastState: {}
+      name: install-cni-binaries
+      ready: true
+      restartCount: 0
+      started: false
+      state:
+        terminated:
+          containerID: containerd://bb624c676404ca31407310cf3f4c9d5378aa349e96e6d8492d0497d6f423cd4b
+          exitCode: 0
+          finishedAt: "2025-01-18T14:30:47Z"
+          reason: Completed
+          startedAt: "2025-01-18T14:30:47Z"
+      volumeMounts:
+      - mountPath: /host/opt/cni/bin
+        name: cni-path
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-84p6h
+        readOnly: true
+        recursiveReadOnly: Disabled
+    phase: Running
+    podIP: 10.138.200.240
+    podIPs:
+    - ip: 10.138.200.240
+    qosClass: Burstable
+    startTime: "2025-01-18T14:30:26Z"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    creationTimestamp: "2025-01-18T14:31:33Z"
+    generateName: coredns-c5c6457c-
+    labels:
+      doks.digitalocean.com/managed: "true"
+      k8s-app: kube-dns
+      pod-template-hash: c5c6457c
+    name: coredns-c5c6457c-c26f6
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: ReplicaSet
+      name: coredns-c5c6457c
+      uid: 3b04d1f6-a95a-481c-bd9f-8cb012d756db
+    resourceVersion: "1239"
+    uid: 8155e2c0-dc72-4914-9166-b089393b40fd
+  spec:
+    affinity:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - preference:
+            matchExpressions:
+            - key: doks.digitalocean.com/gpu-brand
+              operator: DoesNotExist
+          weight: 50
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: k8s-app
+                operator: In
+                values:
+                - kube-dns
+            topologyKey: kubernetes.io/hostname
+          weight: 100
+    containers:
+    - args:
+      - -conf
+      - /etc/coredns/Corefile
+      image: docker.io/coredns/coredns:1.11.1
+      imagePullPolicy: IfNotPresent
+      livenessProbe:
+        failureThreshold: 5
+        httpGet:
+          path: /health
+          port: 8080
+          scheme: HTTP
+        initialDelaySeconds: 60
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 5
+      name: coredns
+      ports:
+      - containerPort: 53
+        name: dns
+        protocol: UDP
+      - containerPort: 53
+        name: dns-tcp
+        protocol: TCP
+      - containerPort: 9153
+        name: metrics
+        protocol: TCP
+      readinessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /ready
+          port: 8181
+          scheme: HTTP
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+      resources:
+        limits:
+          memory: 170Mi
+        requests:
+          cpu: 100m
+          memory: 70Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          add:
+          - NET_BIND_SERVICE
+          drop:
+          - all
+        readOnlyRootFilesystem: true
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /etc/coredns
+        name: config-volume
+        readOnly: true
+      - mountPath: /etc/coredns/custom
+        name: custom-config-volume
+        readOnly: true
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-j89g5
+        readOnly: true
+    dnsPolicy: Default
+    enableServiceLinks: true
+    nodeName: default-pool-eil3q
+    nodeSelector:
+      kubernetes.io/os: linux
+    preemptionPolicy: PreemptLowerPriority
+    priority: 2000000000
+    priorityClassName: system-cluster-critical
+    restartPolicy: Always
+    schedulerName: default-scheduler
+    securityContext: {}
+    serviceAccount: coredns
+    serviceAccountName: coredns
+    terminationGracePeriodSeconds: 30
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - key: nvidia.com/gpu
+      operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+      tolerationSeconds: 300
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+      tolerationSeconds: 300
+    volumes:
+    - configMap:
+        defaultMode: 420
+        items:
+        - key: Corefile
+          path: Corefile
+        name: coredns
+      name: config-volume
+    - configMap:
+        defaultMode: 420
+        name: coredns-custom
+        optional: true
+      name: custom-config-volume
+    - name: kube-api-access-j89g5
+      projected:
+        defaultMode: 420
+        sources:
+        - serviceAccountToken:
+            expirationSeconds: 3607
+            path: token
+        - configMap:
+            items:
+            - key: ca.crt
+              path: ca.crt
+            name: kube-root-ca.crt
+        - downwardAPI:
+            items:
+            - fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+              path: namespace
+  status:
+    conditions:
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:38Z"
+      status: "True"
+      type: PodReadyToStartContainers
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:33Z"
+      status: "True"
+      type: Initialized
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:38Z"
+      status: "True"
+      type: Ready
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:38Z"
+      status: "True"
+      type: ContainersReady
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:33Z"
+      status: "True"
+      type: PodScheduled
+    containerStatuses:
+    - containerID: containerd://7fe3d2f1afe5ab3f42b313028ab2d8a3194b3fdf534c05472727af74af498d89
+      image: docker.io/coredns/coredns:1.11.1
+      imageID: docker.io/coredns/coredns@sha256:1eeb4c7316bacb1d4c8ead65571cd92dd21e27359f0d4917f1a5822a73b75db1
+      lastState: {}
+      name: coredns
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2025-01-18T14:31:38Z"
+      volumeMounts:
+      - mountPath: /etc/coredns
+        name: config-volume
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /etc/coredns/custom
+        name: custom-config-volume
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-j89g5
+        readOnly: true
+        recursiveReadOnly: Disabled
+    hostIP: 10.138.200.240
+    hostIPs:
+    - ip: 10.138.200.240
+    phase: Running
+    podIP: 10.244.0.35
+    podIPs:
+    - ip: 10.244.0.35
+    qosClass: Burstable
+    startTime: "2025-01-18T14:31:33Z"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    creationTimestamp: "2025-01-18T14:31:33Z"
+    generateName: coredns-c5c6457c-
+    labels:
+      doks.digitalocean.com/managed: "true"
+      k8s-app: kube-dns
+      pod-template-hash: c5c6457c
+    name: coredns-c5c6457c-x9rh7
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: ReplicaSet
+      name: coredns-c5c6457c
+      uid: 3b04d1f6-a95a-481c-bd9f-8cb012d756db
+    resourceVersion: "1234"
+    uid: 23b1ddf1-3b08-4ce8-a50f-b503d975e910
+  spec:
+    affinity:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - preference:
+            matchExpressions:
+            - key: doks.digitalocean.com/gpu-brand
+              operator: DoesNotExist
+          weight: 50
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: k8s-app
+                operator: In
+                values:
+                - kube-dns
+            topologyKey: kubernetes.io/hostname
+          weight: 100
+    containers:
+    - args:
+      - -conf
+      - /etc/coredns/Corefile
+      image: docker.io/coredns/coredns:1.11.1
+      imagePullPolicy: IfNotPresent
+      livenessProbe:
+        failureThreshold: 5
+        httpGet:
+          path: /health
+          port: 8080
+          scheme: HTTP
+        initialDelaySeconds: 60
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 5
+      name: coredns
+      ports:
+      - containerPort: 53
+        name: dns
+        protocol: UDP
+      - containerPort: 53
+        name: dns-tcp
+        protocol: TCP
+      - containerPort: 9153
+        name: metrics
+        protocol: TCP
+      readinessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /ready
+          port: 8181
+          scheme: HTTP
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+      resources:
+        limits:
+          memory: 170Mi
+        requests:
+          cpu: 100m
+          memory: 70Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          add:
+          - NET_BIND_SERVICE
+          drop:
+          - all
+        readOnlyRootFilesystem: true
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /etc/coredns
+        name: config-volume
+        readOnly: true
+      - mountPath: /etc/coredns/custom
+        name: custom-config-volume
+        readOnly: true
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-mqpph
+        readOnly: true
+    dnsPolicy: Default
+    enableServiceLinks: true
+    nodeName: default-pool-eil3q
+    nodeSelector:
+      kubernetes.io/os: linux
+    preemptionPolicy: PreemptLowerPriority
+    priority: 2000000000
+    priorityClassName: system-cluster-critical
+    restartPolicy: Always
+    schedulerName: default-scheduler
+    securityContext: {}
+    serviceAccount: coredns
+    serviceAccountName: coredns
+    terminationGracePeriodSeconds: 30
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - key: nvidia.com/gpu
+      operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+      tolerationSeconds: 300
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+      tolerationSeconds: 300
+    volumes:
+    - configMap:
+        defaultMode: 420
+        items:
+        - key: Corefile
+          path: Corefile
+        name: coredns
+      name: config-volume
+    - configMap:
+        defaultMode: 420
+        name: coredns-custom
+        optional: true
+      name: custom-config-volume
+    - name: kube-api-access-mqpph
+      projected:
+        defaultMode: 420
+        sources:
+        - serviceAccountToken:
+            expirationSeconds: 3607
+            path: token
+        - configMap:
+            items:
+            - key: ca.crt
+              path: ca.crt
+            name: kube-root-ca.crt
+        - downwardAPI:
+            items:
+            - fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+              path: namespace
+  status:
+    conditions:
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:38Z"
+      status: "True"
+      type: PodReadyToStartContainers
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:33Z"
+      status: "True"
+      type: Initialized
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:38Z"
+      status: "True"
+      type: Ready
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:38Z"
+      status: "True"
+      type: ContainersReady
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:33Z"
+      status: "True"
+      type: PodScheduled
+    containerStatuses:
+    - containerID: containerd://cd0024f05bae8e1e460ca46e07c296264ed0bf5ea7d49a2a4460dae11f07c209
+      image: docker.io/coredns/coredns:1.11.1
+      imageID: docker.io/coredns/coredns@sha256:1eeb4c7316bacb1d4c8ead65571cd92dd21e27359f0d4917f1a5822a73b75db1
+      lastState: {}
+      name: coredns
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2025-01-18T14:31:38Z"
+      volumeMounts:
+      - mountPath: /etc/coredns
+        name: config-volume
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /etc/coredns/custom
+        name: custom-config-volume
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-mqpph
+        readOnly: true
+        recursiveReadOnly: Disabled
+    hostIP: 10.138.200.240
+    hostIPs:
+    - ip: 10.138.200.240
+    phase: Running
+    podIP: 10.244.0.57
+    podIPs:
+    - ip: 10.244.0.57
+    qosClass: Burstable
+    startTime: "2025-01-18T14:31:33Z"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    annotations:
+      clusterlint.digitalocean.com/disabled-checks: resource-requirements
+    creationTimestamp: "2025-01-18T14:31:20Z"
+    generateName: cpc-bridge-proxy-
+    labels:
+      app: cpc-bridge-proxy
+      controller-revision-hash: 8576bf9896
+      doks.digitalocean.com/managed: "true"
+      pod-template-generation: "1"
+    name: cpc-bridge-proxy-jwfp6
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: DaemonSet
+      name: cpc-bridge-proxy
+      uid: 86527261-e66b-4773-8793-0b04842c38bf
+    resourceVersion: "1164"
+    uid: e20b0ec7-7edb-4f70-84c3-8d12eb43e4d9
+  spec:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchFields:
+            - key: metadata.name
+              operator: In
+              values:
+              - default-pool-eil3q
+    automountServiceAccountToken: false
+    containers:
+    - image: digitalocean/cpbridge:1.27.1
+      imagePullPolicy: IfNotPresent
+      name: cpc-bridge-proxy
+      resources:
+        requests:
+          cpu: 100m
+          memory: 75Mi
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /etc/nginx
+        name: cpc-bridge-proxy-config
+        readOnly: true
+    dnsPolicy: ClusterFirst
+    enableServiceLinks: true
+    hostNetwork: true
+    initContainers:
+    - command:
+      - /bin/bash
+      - -c
+      - |
+        set -o errexit
+        set -o pipefail
+        set -o nounset
+        ipt_nat="iptables-legacy -t nat"
+        # Avoid racing with kube-proxy on the initial iptables rules population which makes the rule order indeterministic.
+        until ${ipt_nat} --list KUBE-SERVICES > /dev/null; do echo "waiting for kube-proxy to populate iptables rules"; sleep 3; done
+        ipt_output_args="OUTPUT -p tcp -d 10.245.0.1/32 --dport 443 -j DNAT --to-destination 100.65.16.196:16443"
+        ipt_prerouting_args="PREROUTING -p tcp -d 100.65.16.196 --dport 443 -j DNAT --to-destination 100.65.16.196:16443"
+        ${ipt_nat} --check ${ipt_output_args} || ${ipt_nat} --insert ${ipt_output_args}
+        ${ipt_nat} --check ${ipt_prerouting_args} || ${ipt_nat} --insert ${ipt_prerouting_args}
+      image: digitalocean/cpbridge:1.27.1
+      imagePullPolicy: IfNotPresent
+      name: init-iptables
+      resources: {}
+      securityContext:
+        capabilities:
+          add:
+          - NET_ADMIN
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+    nodeName: default-pool-eil3q
+    preemptionPolicy: PreemptLowerPriority
+    priority: 2000001000
+    priorityClassName: system-node-critical
+    restartPolicy: Always
+    schedulerName: default-scheduler
+    securityContext: {}
+    serviceAccount: default
+    serviceAccountName: default
+    terminationGracePeriodSeconds: 30
+    tolerations:
+    - operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/disk-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/memory-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/pid-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/unschedulable
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/network-unavailable
+      operator: Exists
+    volumes:
+    - configMap:
+        defaultMode: 420
+        name: cpc-bridge-proxy-config
+      name: cpc-bridge-proxy-config
+  status:
+    conditions:
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:28Z"
+      status: "True"
+      type: PodReadyToStartContainers
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:29Z"
+      status: "True"
+      type: Initialized
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:30Z"
+      status: "True"
+      type: Ready
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:30Z"
+      status: "True"
+      type: ContainersReady
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:20Z"
+      status: "True"
+      type: PodScheduled
+    containerStatuses:
+    - containerID: containerd://d01b48d17cc998a392bd678ef4a87472dc99826ec7aa8671ca97fd487da2a14b
+      image: docker.io/digitalocean/cpbridge:1.27.1
+      imageID: docker.io/digitalocean/cpbridge@sha256:eda362f8d654e5469539cd4b7d40dfbc34530cfc624bf07253d6e30ede640e86
+      lastState: {}
+      name: cpc-bridge-proxy
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2025-01-18T14:31:29Z"
+      volumeMounts:
+      - mountPath: /etc/nginx
+        name: cpc-bridge-proxy-config
+        readOnly: true
+        recursiveReadOnly: Disabled
+    hostIP: 10.138.200.240
+    hostIPs:
+    - ip: 10.138.200.240
+    initContainerStatuses:
+    - containerID: containerd://dc077ad69be239df542ee56a706ebb87e474f2351d797e2eecd70d4e7cb98825
+      image: docker.io/digitalocean/cpbridge:1.27.1
+      imageID: docker.io/digitalocean/cpbridge@sha256:eda362f8d654e5469539cd4b7d40dfbc34530cfc624bf07253d6e30ede640e86
+      lastState: {}
+      name: init-iptables
+      ready: true
+      restartCount: 0
+      started: false
+      state:
+        terminated:
+          containerID: containerd://dc077ad69be239df542ee56a706ebb87e474f2351d797e2eecd70d4e7cb98825
+          exitCode: 0
+          finishedAt: "2025-01-18T14:31:28Z"
+          reason: Completed
+          startedAt: "2025-01-18T14:31:28Z"
+    phase: Running
+    podIP: 10.138.200.240
+    podIPs:
+    - ip: 10.138.200.240
+    qosClass: Burstable
+    startTime: "2025-01-18T14:31:20Z"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    annotations:
+      clusterlint.digitalocean.com/disabled-checks: privileged-containers,non-root-user,resource-requirements,hostpath-volume
+      kubectl.kubernetes.io/default-container: csi-do-plugin
+    creationTimestamp: "2025-01-18T14:31:40Z"
+    generateName: csi-do-node-
+    labels:
+      app: csi-do-node
+      controller-revision-hash: cd95549f6
+      doks.digitalocean.com/managed: "true"
+      pod-template-generation: "1"
+      role: csi-do
+    name: csi-do-node-qtfnd
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: DaemonSet
+      name: csi-do-node
+      uid: c71444d6-688d-475b-af10-2fca9546dd76
+    resourceVersion: "1297"
+    uid: 150cd371-2b37-4873-9f4c-59384e916042
+  spec:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchFields:
+            - key: metadata.name
+              operator: In
+              values:
+              - default-pool-eil3q
+    containers:
+    - args:
+      - --v=5
+      - --csi-address=$(ADDRESS)
+      - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+      env:
+      - name: ADDRESS
+        value: /csi/csi.sock
+      - name: DRIVER_REG_SOCK_PATH
+        value: /var/lib/kubelet/plugins/dobs.csi.digitalocean.com/csi.sock
+      - name: KUBE_NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.11.1
+      imagePullPolicy: IfNotPresent
+      lifecycle:
+        preStop:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - rm -rf /registration/dobs.csi.digitalocean.com /registration/dobs.csi.digitalocean.com-reg.sock
+      name: csi-node-driver-registrar
+      resources: {}
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /csi/
+        name: plugin-dir
+      - mountPath: /registration/
+        name: registration-dir
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-t97fq
+        readOnly: true
+    - args:
+      - --endpoint=$(CSI_ENDPOINT)
+      - --validate-attachment=true
+      - --volume-limit=15
+      - --url=https://api.digitalocean.com
+      - --driver-name=dobs.csi.digitalocean.com
+      env:
+      - name: CSI_ENDPOINT
+        value: unix:///csi/csi.sock
+      image: docker.io/digitalocean/do-csi-plugin:v4.12.0
+      imagePullPolicy: Always
+      name: csi-do-plugin
+      resources: {}
+      securityContext:
+        allowPrivilegeEscalation: true
+        capabilities:
+          add:
+          - SYS_ADMIN
+        privileged: true
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /csi
+        name: plugin-dir
+      - mountPath: /var/lib/kubelet
+        mountPropagation: Bidirectional
+        name: pods-mount-dir
+      - mountPath: /dev
+        name: device-dir
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-t97fq
+        readOnly: true
+    dnsPolicy: ClusterFirst
+    enableServiceLinks: true
+    hostNetwork: true
+    nodeName: default-pool-eil3q
+    preemptionPolicy: PreemptLowerPriority
+    priority: 2000001000
+    priorityClassName: system-node-critical
+    restartPolicy: Always
+    schedulerName: default-scheduler
+    securityContext: {}
+    serviceAccount: csi-do-node-sa
+    serviceAccountName: csi-do-node-sa
+    terminationGracePeriodSeconds: 30
+    tolerations:
+    - effect: NoExecute
+      operator: Exists
+    - effect: NoSchedule
+      operator: Exists
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/disk-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/memory-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/pid-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/unschedulable
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/network-unavailable
+      operator: Exists
+    volumes:
+    - hostPath:
+        path: /var/lib/kubelet/plugins_registry/
+        type: DirectoryOrCreate
+      name: registration-dir
+    - hostPath:
+        path: /var/lib/kubelet/plugins/dobs.csi.digitalocean.com
+        type: DirectoryOrCreate
+      name: plugin-dir
+    - hostPath:
+        path: /var/lib/kubelet
+        type: Directory
+      name: pods-mount-dir
+    - hostPath:
+        path: /dev
+        type: ""
+      name: device-dir
+    - name: kube-api-access-t97fq
+      projected:
+        defaultMode: 420
+        sources:
+        - serviceAccountToken:
+            expirationSeconds: 3607
+            path: token
+        - configMap:
+            items:
+            - key: ca.crt
+              path: ca.crt
+            name: kube-root-ca.crt
+        - downwardAPI:
+            items:
+            - fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+              path: namespace
+  status:
+    conditions:
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:47Z"
+      status: "True"
+      type: PodReadyToStartContainers
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:40Z"
+      status: "True"
+      type: Initialized
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:47Z"
+      status: "True"
+      type: Ready
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:47Z"
+      status: "True"
+      type: ContainersReady
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:40Z"
+      status: "True"
+      type: PodScheduled
+    containerStatuses:
+    - containerID: containerd://6452ac3e03b6e8bbe5b5dbbea755a2b03592a554310ea1df59693b695f466f35
+      image: docker.io/digitalocean/do-csi-plugin:v4.12.0
+      imageID: docker.io/digitalocean/do-csi-plugin@sha256:5ea3a074207cf60b13ffeb41047f26b173d72c062afc62f16365c57c54aba3f5
+      lastState: {}
+      name: csi-do-plugin
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2025-01-18T14:31:46Z"
+      volumeMounts:
+      - mountPath: /csi
+        name: plugin-dir
+      - mountPath: /var/lib/kubelet
+        name: pods-mount-dir
+      - mountPath: /dev
+        name: device-dir
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-t97fq
+        readOnly: true
+        recursiveReadOnly: Disabled
+    - containerID: containerd://2e11328cdaac5bc6c9b941ccd57366eb325a996752be9f33616a52f3c63206a7
+      image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.11.1
+      imageID: registry.k8s.io/sig-storage/csi-node-driver-registrar@sha256:e01facb9fb9cffaf52d0053bdb979fbd8c505c8e411939a6e026dd061a6b4fbe
+      lastState: {}
+      name: csi-node-driver-registrar
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2025-01-18T14:31:42Z"
+      volumeMounts:
+      - mountPath: /csi/
+        name: plugin-dir
+      - mountPath: /registration/
+        name: registration-dir
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-t97fq
+        readOnly: true
+        recursiveReadOnly: Disabled
+    hostIP: 10.138.200.240
+    hostIPs:
+    - ip: 10.138.200.240
+    phase: Running
+    podIP: 10.138.200.240
+    podIPs:
+    - ip: 10.138.200.240
+    qosClass: BestEffort
+    startTime: "2025-01-18T14:31:40Z"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    annotations:
+      clusterlint.digitalocean.com/disabled-checks: resource-requirements,hostpath-volume
+    creationTimestamp: "2025-01-18T14:31:52Z"
+    generateName: do-node-agent-
+    labels:
+      app: do-node-agent
+      controller-revision-hash: 776c75f45b
+      doks.digitalocean.com/managed: "true"
+      pod-template-generation: "1"
+    name: do-node-agent-4gkzb
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: DaemonSet
+      name: do-node-agent
+      uid: 7a4b852b-7ae7-4c33-b819-bf0a526c0b41
+    resourceVersion: "1371"
+    uid: eabaaf36-2667-49bf-be29-058b348f8578
+  spec:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchFields:
+            - key: metadata.name
+              operator: In
+              values:
+              - default-pool-eil3q
+    containers:
+    - args:
+      - '@/etc/config/do-agent-config'
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --k8s-metrics-path=http://kube-state-metrics.kube-system.svc.cluster.local:8080/metrics
+      - --additional-label=kubernetes_cluster_uuid:f43d5663-ddaa-413a-9dff-caad3dbd2467
+      command:
+      - /bin/do-agent
+      image: docker.io/digitalocean/do-agent:3.16.9
+      imagePullPolicy: IfNotPresent
+      name: do-node-agent
+      resources:
+        limits:
+          memory: 300Mi
+        requests:
+          cpu: 102m
+          memory: 80Mi
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /host/proc
+        name: proc
+        readOnly: true
+      - mountPath: /host/sys
+        name: sys
+        readOnly: true
+      - mountPath: /host/root
+        mountPropagation: HostToContainer
+        name: root
+        readOnly: true
+      - mountPath: /etc/config
+        name: dynamic-config
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-vt25g
+        readOnly: true
+    dnsPolicy: ClusterFirstWithHostNet
+    enableServiceLinks: true
+    hostNetwork: true
+    initContainers:
+    - command:
+      - sh
+      - -c
+      - |
+        set -o errexit
+        set -o pipefail
+        set -o nounset
+
+        KUBECTL=/host/usr/bin/kubectl
+        POOL_ID="$(${KUBECTL} get node ${NODE_NAME} -o jsonpath='{.metadata.labels.doks\.digitalocean\.com/node-pool-id}')"
+        [[ -z "${POOL_ID}" ]] && echo "Pool ID label missing" && exit 1
+        echo "--additional-label=kubernetes_node_pool_uuid:${POOL_ID}" > /etc/config/do-agent-config
+        echo "Pool ID configured: ${POOL_ID}"
+      env:
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            apiVersion: v1
+            fieldPath: spec.nodeName
+      image: gcr.io/distroless/static-debian12:debug-nonroot-amd64
+      imagePullPolicy: IfNotPresent
+      name: dynamic-config
+      resources: {}
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /etc/config
+        name: dynamic-config
+      - mountPath: /host/usr/bin/kubectl
+        name: host-kubectl
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-vt25g
+        readOnly: true
+    nodeName: default-pool-eil3q
+    nodeSelector:
+      kubernetes.io/os: linux
+    preemptionPolicy: PreemptLowerPriority
+    priority: 2000001000
+    priorityClassName: system-node-critical
+    restartPolicy: Always
+    schedulerName: default-scheduler
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+    serviceAccount: do-agent
+    serviceAccountName: do-agent
+    terminationGracePeriodSeconds: 30
+    tolerations:
+    - operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/disk-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/memory-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/pid-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/unschedulable
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/network-unavailable
+      operator: Exists
+    volumes:
+    - hostPath:
+        path: /proc
+        type: ""
+      name: proc
+    - hostPath:
+        path: /sys
+        type: ""
+      name: sys
+    - hostPath:
+        path: /
+        type: ""
+      name: root
+    - emptyDir: {}
+      name: dynamic-config
+    - hostPath:
+        path: /usr/bin/kubectl
+        type: File
+      name: host-kubectl
+    - name: kube-api-access-vt25g
+      projected:
+        defaultMode: 420
+        sources:
+        - serviceAccountToken:
+            expirationSeconds: 3607
+            path: token
+        - configMap:
+            items:
+            - key: ca.crt
+              path: ca.crt
+            name: kube-root-ca.crt
+        - downwardAPI:
+            items:
+            - fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+              path: namespace
+  status:
+    conditions:
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:55Z"
+      status: "True"
+      type: PodReadyToStartContainers
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:56Z"
+      status: "True"
+      type: Initialized
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:32:00Z"
+      status: "True"
+      type: Ready
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:32:00Z"
+      status: "True"
+      type: ContainersReady
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:52Z"
+      status: "True"
+      type: PodScheduled
+    containerStatuses:
+    - containerID: containerd://fcb9d269e7eb8f8b0041611e0b45abadb429e89118b038a1196d37ebb1bfb0f6
+      image: docker.io/digitalocean/do-agent:3.16.9
+      imageID: docker.io/digitalocean/do-agent@sha256:19b2340bcebf70627c498ecee3e846b47dc1f4570e106555473d21907629587e
+      lastState: {}
+      name: do-node-agent
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2025-01-18T14:31:59Z"
+      volumeMounts:
+      - mountPath: /host/proc
+        name: proc
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /host/sys
+        name: sys
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /host/root
+        name: root
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /etc/config
+        name: dynamic-config
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-vt25g
+        readOnly: true
+        recursiveReadOnly: Disabled
+    hostIP: 10.138.200.240
+    hostIPs:
+    - ip: 10.138.200.240
+    initContainerStatuses:
+    - containerID: containerd://3a0e570d9957aa850e1b09c0bb8ed52125bbc51346a8931cdcd8269b0f8e386f
+      image: gcr.io/distroless/static-debian12:debug-nonroot-amd64
+      imageID: gcr.io/distroless/static-debian12@sha256:7773e3507cf80dfffa6710ff00da9e4dfcb2166a02d6ddfd6c1c4b60814cc968
+      lastState: {}
+      name: dynamic-config
+      ready: true
+      restartCount: 0
+      started: false
+      state:
+        terminated:
+          containerID: containerd://3a0e570d9957aa850e1b09c0bb8ed52125bbc51346a8931cdcd8269b0f8e386f
+          exitCode: 0
+          finishedAt: "2025-01-18T14:31:55Z"
+          reason: Completed
+          startedAt: "2025-01-18T14:31:55Z"
+      volumeMounts:
+      - mountPath: /etc/config
+        name: dynamic-config
+      - mountPath: /host/usr/bin/kubectl
+        name: host-kubectl
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-vt25g
+        readOnly: true
+        recursiveReadOnly: Disabled
+    phase: Running
+    podIP: 10.138.200.240
+    podIPs:
+    - ip: 10.138.200.240
+    qosClass: Burstable
+    startTime: "2025-01-18T14:31:52Z"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    annotations:
+      cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+      clusterlint.digitalocean.com/disabled-checks: resource-requirements
+    creationTimestamp: "2025-01-18T14:28:59Z"
+    generateName: hubble-relay-67597fb8-
+    labels:
+      app.kubernetes.io/name: hubble-relay
+      app.kubernetes.io/part-of: cilium
+      doks.digitalocean.com/managed: "true"
+      k8s-app: hubble-relay
+      pod-template-hash: 67597fb8
+    name: hubble-relay-67597fb8-dl4sr
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: ReplicaSet
+      name: hubble-relay-67597fb8
+      uid: dec43676-2d16-4ea9-9494-4504fd2a6d7e
+    resourceVersion: "988"
+    uid: fc2cac8e-4675-4692-a75b-d8eb6c2fc110
+  spec:
+    affinity:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - preference:
+            matchExpressions:
+            - key: doks.digitalocean.com/gpu-brand
+              operator: DoesNotExist
+          weight: 100
+      podAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              k8s-app: cilium
+          topologyKey: kubernetes.io/hostname
+    automountServiceAccountToken: false
+    containers:
+    - args:
+      - serve
+      command:
+      - hubble-relay
+      image: quay.io/cilium/hubble-relay:v1.15.8@sha256:47e8a19f60d0d226ec3d2c675ec63908f1f2fb936a39897f2e3255b3bab01ad6
+      imagePullPolicy: IfNotPresent
+      livenessProbe:
+        failureThreshold: 12
+        grpc:
+          port: 4222
+          service: ""
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 10
+      name: hubble-relay
+      ports:
+      - containerPort: 4245
+        name: grpc
+        protocol: TCP
+      resources: {}
+      securityContext:
+        capabilities:
+          drop:
+          - ALL
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: FallbackToLogsOnError
+      volumeMounts:
+      - mountPath: /etc/hubble-relay
+        name: config
+        readOnly: true
+      - mountPath: /var/lib/hubble-relay/tls
+        name: tls
+        readOnly: true
+    dnsPolicy: ClusterFirst
+    enableServiceLinks: true
+    nodeName: default-pool-eil3q
+    nodeSelector:
+      kubernetes.io/os: linux
+    preemptionPolicy: PreemptLowerPriority
+    priority: 0
+    restartPolicy: Always
+    schedulerName: default-scheduler
+    securityContext:
+      fsGroup: 65532
+    serviceAccount: hubble-relay
+    serviceAccountName: hubble-relay
+    terminationGracePeriodSeconds: 1
+    tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+      tolerationSeconds: 300
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+      tolerationSeconds: 300
+    volumes:
+    - configMap:
+        defaultMode: 420
+        items:
+        - key: config.yaml
+          path: config.yaml
+        name: hubble-relay-config
+      name: config
+    - name: tls
+      projected:
+        defaultMode: 256
+        sources:
+        - secret:
+            items:
+            - key: tls.crt
+              path: client.crt
+            - key: tls.key
+              path: client.key
+            - key: ca.crt
+              path: hubble-server-ca.crt
+            name: hubble-relay-client-certs
+  status:
+    conditions:
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:01Z"
+      status: "True"
+      type: PodReadyToStartContainers
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:30:54Z"
+      status: "True"
+      type: Initialized
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:01Z"
+      status: "True"
+      type: Ready
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:01Z"
+      status: "True"
+      type: ContainersReady
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:30:54Z"
+      status: "True"
+      type: PodScheduled
+    containerStatuses:
+    - containerID: containerd://0b4e38640d5fdcb2ce832b2c9a184431e1c9ffb1bbe52940d70c9222ba19c93f
+      image: sha256:96cb95fb4365485a02c5ba35abdeec84dbdb722c6f8c8e7d46c1f7828c70ae5e
+      imageID: quay.io/cilium/hubble-relay@sha256:47e8a19f60d0d226ec3d2c675ec63908f1f2fb936a39897f2e3255b3bab01ad6
+      lastState: {}
+      name: hubble-relay
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2025-01-18T14:31:01Z"
+      volumeMounts:
+      - mountPath: /etc/hubble-relay
+        name: config
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /var/lib/hubble-relay/tls
+        name: tls
+        readOnly: true
+        recursiveReadOnly: Disabled
+    hostIP: 10.138.200.240
+    hostIPs:
+    - ip: 10.138.200.240
+    phase: Running
+    podIP: 10.244.0.86
+    podIPs:
+    - ip: 10.244.0.86
+    qosClass: BestEffort
+    startTime: "2025-01-18T14:30:54Z"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    annotations:
+      cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+      clusterlint.digitalocean.com/disabled-checks: resource-requirements
+    creationTimestamp: "2025-01-18T14:31:02Z"
+    generateName: hubble-ui-79957d9f7b-
+    labels:
+      app.kubernetes.io/name: hubble-ui
+      app.kubernetes.io/part-of: cilium
+      doks.digitalocean.com/managed: "true"
+      k8s-app: hubble-ui
+      pod-template-hash: 79957d9f7b
+    name: hubble-ui-79957d9f7b-h7pjt
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: ReplicaSet
+      name: hubble-ui-79957d9f7b
+      uid: 9e86df08-a82a-4c87-b2e4-80beac45b93e
+    resourceVersion: "1052"
+    uid: b058bc4b-c26c-4539-b0e8-74fb10f7e663
+  spec:
+    affinity:
+      nodeAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - preference:
+            matchExpressions:
+            - key: doks.digitalocean.com/gpu-brand
+              operator: DoesNotExist
+          weight: 100
+    automountServiceAccountToken: true
+    containers:
+    - image: quay.io/cilium/hubble-ui:v0.13.1@sha256:e2e9313eb7caf64b0061d9da0efbdad59c6c461f6ca1752768942bfeda0796c6
+      imagePullPolicy: IfNotPresent
+      livenessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /healthz
+          port: 8081
+          scheme: HTTP
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+      name: frontend
+      ports:
+      - containerPort: 8081
+        name: http
+        protocol: TCP
+      readinessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /
+          port: 8081
+          scheme: HTTP
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+      resources: {}
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: FallbackToLogsOnError
+      volumeMounts:
+      - mountPath: /etc/nginx/conf.d/default.conf
+        name: hubble-ui-nginx-conf
+        subPath: nginx.conf
+      - mountPath: /tmp
+        name: tmp-dir
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-cxr4m
+        readOnly: true
+    - env:
+      - name: EVENTS_SERVER_PORT
+        value: "8090"
+      - name: FLOWS_API_ADDR
+        value: hubble-relay:80
+      image: quay.io/cilium/hubble-ui-backend:v0.13.1@sha256:0e0eed917653441fded4e7cdb096b7be6a3bddded5a2dd10812a27b1fc6ed95b
+      imagePullPolicy: IfNotPresent
+      name: backend
+      ports:
+      - containerPort: 8090
+        name: grpc
+        protocol: TCP
+      resources: {}
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: FallbackToLogsOnError
+      volumeMounts:
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-cxr4m
+        readOnly: true
+    dnsPolicy: ClusterFirst
+    enableServiceLinks: true
+    nodeName: default-pool-eil3q
+    nodeSelector:
+      kubernetes.io/os: linux
+    preemptionPolicy: PreemptLowerPriority
+    priority: 0
+    restartPolicy: Always
+    schedulerName: default-scheduler
+    securityContext:
+      fsGroup: 1001
+      runAsGroup: 1001
+      runAsUser: 1001
+    serviceAccount: hubble-ui
+    serviceAccountName: hubble-ui
+    terminationGracePeriodSeconds: 30
+    tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+      tolerationSeconds: 300
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+      tolerationSeconds: 300
+    volumes:
+    - configMap:
+        defaultMode: 420
+        name: hubble-ui-nginx
+      name: hubble-ui-nginx-conf
+    - emptyDir: {}
+      name: tmp-dir
+    - name: kube-api-access-cxr4m
+      projected:
+        defaultMode: 420
+        sources:
+        - serviceAccountToken:
+            expirationSeconds: 3607
+            path: token
+        - configMap:
+            items:
+            - key: ca.crt
+              path: ca.crt
+            name: kube-root-ca.crt
+        - downwardAPI:
+            items:
+            - fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+              path: namespace
+  status:
+    conditions:
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:11Z"
+      status: "True"
+      type: PodReadyToStartContainers
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:02Z"
+      status: "True"
+      type: Initialized
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:11Z"
+      status: "True"
+      type: Ready
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:11Z"
+      status: "True"
+      type: ContainersReady
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:02Z"
+      status: "True"
+      type: PodScheduled
+    containerStatuses:
+    - containerID: containerd://21be022f71365e6c7f5b365d589033138aac88aeb407342f96fd7cee041208c0
+      image: sha256:f0ecf98c8a1ce15078db58c4116ff345723ca056700a7f93e43660a5c24fa85f
+      imageID: quay.io/cilium/hubble-ui-backend@sha256:0e0eed917653441fded4e7cdb096b7be6a3bddded5a2dd10812a27b1fc6ed95b
+      lastState: {}
+      name: backend
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2025-01-18T14:31:11Z"
+      volumeMounts:
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-cxr4m
+        readOnly: true
+        recursiveReadOnly: Disabled
+    - containerID: containerd://df81408b200ef73650562fba44c0de0914eaa2251b4d528b9363b05ecfcd7a35
+      image: sha256:9fa78123d65531147fe8df7d5714783f33cb8cad98d82ee5bb426c9228cd9f76
+      imageID: quay.io/cilium/hubble-ui@sha256:e2e9313eb7caf64b0061d9da0efbdad59c6c461f6ca1752768942bfeda0796c6
+      lastState: {}
+      name: frontend
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2025-01-18T14:31:07Z"
+      volumeMounts:
+      - mountPath: /etc/nginx/conf.d/default.conf
+        name: hubble-ui-nginx-conf
+      - mountPath: /tmp
+        name: tmp-dir
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-cxr4m
+        readOnly: true
+        recursiveReadOnly: Disabled
+    hostIP: 10.138.200.240
+    hostIPs:
+    - ip: 10.138.200.240
+    phase: Running
+    podIP: 10.244.0.73
+    podIPs:
+    - ip: 10.244.0.73
+    qosClass: BestEffort
+    startTime: "2025-01-18T14:31:02Z"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    annotations:
+      clusterlint.digitalocean.com/disabled-checks: resource-requirements
+    creationTimestamp: "2025-01-18T14:31:14Z"
+    generateName: konnectivity-agent-
+    labels:
+      controller-revision-hash: 85597c88f8
+      doks.digitalocean.com/managed: "true"
+      k8s-app: konnectivity-agent
+      pod-template-generation: "1"
+    name: konnectivity-agent-gdhzv
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: DaemonSet
+      name: konnectivity-agent
+      uid: cc1cf2ac-29c3-4c89-8151-11b5d176d770
+    resourceVersion: "1101"
+    uid: f660b011-afc5-4273-8ac9-3ac60c296bc1
+  spec:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchFields:
+            - key: metadata.name
+              operator: In
+              values:
+              - default-pool-eil3q
+    containers:
+    - args:
+      - --logtostderr=true
+      - --ca-cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      - --proxy-server-port=8132
+      - --admin-server-port=8133
+      - --health-server-port=8134
+      - --keepalive-time=5m
+      - --service-account-token-path=/var/run/secrets/tokens/konnectivity-agent-token
+      - --proxy-server-host=f43d5663-ddaa-413a-9dff-caad3dbd2467.k8s.ondigitalocean.com
+      command:
+      - /proxy-agent
+      image: registry.k8s.io/kas-network-proxy/proxy-agent:v0.30.2
+      imagePullPolicy: IfNotPresent
+      livenessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /healthz
+          port: 8134
+          scheme: HTTP
+        initialDelaySeconds: 15
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 15
+      name: konnectivity-agent
+      resources: {}
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /var/run/secrets/tokens
+        name: konnectivity-agent-token
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-xzndr
+        readOnly: true
+    dnsPolicy: Default
+    enableServiceLinks: true
+    nodeName: default-pool-eil3q
+    preemptionPolicy: PreemptLowerPriority
+    priority: 2000000000
+    priorityClassName: system-cluster-critical
+    restartPolicy: Always
+    schedulerName: default-scheduler
+    securityContext: {}
+    serviceAccount: konnectivity-agent
+    serviceAccountName: konnectivity-agent
+    terminationGracePeriodSeconds: 30
+    tolerations:
+    - operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/disk-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/memory-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/pid-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/unschedulable
+      operator: Exists
+    volumes:
+    - name: konnectivity-agent-token
+      projected:
+        defaultMode: 420
+        sources:
+        - serviceAccountToken:
+            audience: system:konnectivity-server
+            expirationSeconds: 3600
+            path: konnectivity-agent-token
+    - name: kube-api-access-xzndr
+      projected:
+        defaultMode: 420
+        sources:
+        - serviceAccountToken:
+            expirationSeconds: 3607
+            path: token
+        - configMap:
+            items:
+            - key: ca.crt
+              path: ca.crt
+            name: kube-root-ca.crt
+        - downwardAPI:
+            items:
+            - fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+              path: namespace
+  status:
+    conditions:
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:18Z"
+      status: "True"
+      type: PodReadyToStartContainers
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:14Z"
+      status: "True"
+      type: Initialized
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:18Z"
+      status: "True"
+      type: Ready
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:18Z"
+      status: "True"
+      type: ContainersReady
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:31:14Z"
+      status: "True"
+      type: PodScheduled
+    containerStatuses:
+    - containerID: containerd://5f5d8227443432389314062f77d00b04d81bd98bffb88efe931a0d0ca6599ced
+      image: registry.k8s.io/kas-network-proxy/proxy-agent:v0.30.2
+      imageID: registry.k8s.io/kas-network-proxy/proxy-agent@sha256:9a44a615d53d20d1ea5dbf407a65146e2a5263dd039b48e7f238b60ce063d3eb
+      lastState: {}
+      name: konnectivity-agent
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2025-01-18T14:31:17Z"
+      volumeMounts:
+      - mountPath: /var/run/secrets/tokens
+        name: konnectivity-agent-token
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-xzndr
+        readOnly: true
+        recursiveReadOnly: Disabled
+    hostIP: 10.138.200.240
+    hostIPs:
+    - ip: 10.138.200.240
+    phase: Running
+    podIP: 10.244.0.63
+    podIPs:
+    - ip: 10.244.0.63
+    qosClass: BestEffort
+    startTime: "2025-01-18T14:31:14Z"
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    annotations:
+      clusterlint.digitalocean.com/disabled-checks: privileged-containers,non-root-user,resource-requirements,hostpath-volume
+    creationTimestamp: "2025-01-18T14:30:26Z"
+    generateName: kube-proxy-
+    labels:
+      controller-revision-hash: 67bf866d5c
+      doks.digitalocean.com/managed: "true"
+      k8s-app: kube-proxy
+      pod-template-generation: "1"
+      tier: node
+    name: kube-proxy-mrwbb
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: DaemonSet
+      name: kube-proxy
+      uid: 1be7aa2f-bcb5-4bc4-82e5-c95b1a20c2f3
+    resourceVersion: "827"
+    uid: 0f3ec459-5b02-46ec-97b7-2647b37c876d
+  spec:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchFields:
+            - key: metadata.name
+              operator: In
+              values:
+              - default-pool-eil3q
+    containers:
+    - command:
+      - kube-proxy
+      - --config=/etc/kubernetes/config/kube-proxy-config.yaml
+      image: registry.k8s.io/kube-proxy:v1.31.1
+      imagePullPolicy: IfNotPresent
+      name: kube-proxy
+      resources:
+        requests:
+          memory: 125Mi
+      securityContext:
+        privileged: true
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+      - mountPath: /etc/kubernetes
+        name: kube-proxy-kubeconfig
+        readOnly: true
+      - mountPath: /etc/kubernetes/config
+        name: kube-proxy-config
+        readOnly: true
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-kgq6c
+        readOnly: true
+    dnsPolicy: ClusterFirst
+    enableServiceLinks: true
+    hostNetwork: true
+    nodeName: default-pool-eil3q
+    preemptionPolicy: PreemptLowerPriority
+    priority: 2000001000
+    priorityClassName: system-node-critical
+    restartPolicy: Always
+    schedulerName: default-scheduler
+    securityContext: {}
+    serviceAccount: kube-proxy
+    serviceAccountName: kube-proxy
+    terminationGracePeriodSeconds: 30
+    tolerations:
+    - effect: NoExecute
+      operator: Exists
+    - effect: NoSchedule
+      operator: Exists
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/disk-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/memory-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/pid-pressure
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/unschedulable
+      operator: Exists
+    - effect: NoSchedule
+      key: node.kubernetes.io/network-unavailable
+      operator: Exists
+    volumes:
+    - name: kube-proxy-kubeconfig
+      secret:
+        defaultMode: 420
+        secretName: kube-proxy
+    - configMap:
+        defaultMode: 420
+        name: kube-proxy
+      name: kube-proxy-config
+    - name: kube-api-access-kgq6c
+      projected:
+        defaultMode: 420
+        sources:
+        - serviceAccountToken:
+            expirationSeconds: 3607
+            path: token
+        - configMap:
+            items:
+            - key: ca.crt
+              path: ca.crt
+            name: kube-root-ca.crt
+        - downwardAPI:
+            items:
+            - fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+              path: namespace
+  status:
+    conditions:
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:30:32Z"
+      status: "True"
+      type: PodReadyToStartContainers
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:30:26Z"
+      status: "True"
+      type: Initialized
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:30:32Z"
+      status: "True"
+      type: Ready
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:30:32Z"
+      status: "True"
+      type: ContainersReady
+    - lastProbeTime: null
+      lastTransitionTime: "2025-01-18T14:30:26Z"
+      status: "True"
+      type: PodScheduled
+    containerStatuses:
+    - containerID: containerd://4a3449b0cf89679be61783c7b64b7e4bf757349370b064b093ba8604cb061b68
+      image: registry.k8s.io/kube-proxy:v1.31.1
+      imageID: registry.k8s.io/kube-proxy@sha256:4ee50b00484d7f39a90fc4cda92251177ef5ad8fdf2f2a0c768f9e634b4c6d44
+      lastState: {}
+      name: kube-proxy
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: "2025-01-18T14:30:31Z"
+      volumeMounts:
+      - mountPath: /etc/kubernetes
+        name: kube-proxy-kubeconfig
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /etc/kubernetes/config
+        name: kube-proxy-config
+        readOnly: true
+        recursiveReadOnly: Disabled
+      - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+        name: kube-api-access-kgq6c
+        readOnly: true
+        recursiveReadOnly: Disabled
+    hostIP: 10.138.200.240
+    hostIPs:
+    - ip: 10.138.200.240
+    phase: Running
+    podIP: 10.138.200.240
+    podIPs:
+    - ip: 10.138.200.240
+    qosClass: Burstable
+    startTime: "2025-01-18T14:30:26Z"
+- apiVersion: v1
+  kind: Service
+  metadata:
+    creationTimestamp: "2025-01-18T14:28:19Z"
+    labels:
+      component: apiserver
+      provider: kubernetes
+    name: kubernetes
+    namespace: default
+    resourceVersion: "193"
+    uid: 384ba1f9-ef74-44ad-823f-0f3f6b38e103
+  spec:
+    clusterIP: 10.245.0.1
+    clusterIPs:
+    - 10.245.0.1
+    internalTrafficPolicy: Cluster
+    ipFamilies:
+    - IPv4
+    ipFamilyPolicy: SingleStack
+    ports:
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 443
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    creationTimestamp: "2025-01-18T14:28:59Z"
+    labels:
+      app.kubernetes.io/name: hubble-peer
+      app.kubernetes.io/part-of: cilium
+      c3.doks.digitalocean.com/component: cilium
+      c3.doks.digitalocean.com/plane: data
+      doks.digitalocean.com/managed: "true"
+      k8s-app: cilium
+    name: hubble-peer
+    namespace: kube-system
+    resourceVersion: "440"
+    uid: 566c7de1-69dd-4a77-b52d-498820796822
+  spec:
+    clusterIP: 10.245.93.199
+    clusterIPs:
+    - 10.245.93.199
+    internalTrafficPolicy: Local
+    ipFamilies:
+    - IPv4
+    ipFamilyPolicy: SingleStack
+    ports:
+    - name: peer-service
+      port: 443
+      protocol: TCP
+      targetPort: 4244
+    selector:
+      k8s-app: cilium
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    creationTimestamp: "2025-01-18T14:28:59Z"
+    labels:
+      app.kubernetes.io/name: hubble-relay
+      app.kubernetes.io/part-of: cilium
+      c3.doks.digitalocean.com/component: cilium
+      c3.doks.digitalocean.com/plane: data
+      doks.digitalocean.com/managed: "true"
+      k8s-app: hubble-relay
+    name: hubble-relay
+    namespace: kube-system
+    resourceVersion: "444"
+    uid: 57373f46-df8a-4a28-bf79-85699d2b5e96
+  spec:
+    clusterIP: 10.245.4.117
+    clusterIPs:
+    - 10.245.4.117
+    internalTrafficPolicy: Cluster
+    ipFamilies:
+    - IPv4
+    ipFamilyPolicy: SingleStack
+    ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 4245
+    selector:
+      k8s-app: hubble-relay
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    creationTimestamp: "2025-01-18T14:28:59Z"
+    labels:
+      app.kubernetes.io/name: hubble-ui
+      app.kubernetes.io/part-of: cilium
+      c3.doks.digitalocean.com/component: cilium
+      c3.doks.digitalocean.com/plane: data
+      doks.digitalocean.com/managed: "true"
+      k8s-app: hubble-ui
+    name: hubble-ui
+    namespace: kube-system
+    resourceVersion: "448"
+    uid: b97db3b9-a949-4950-8a12-55d642f38d3f
+  spec:
+    clusterIP: 10.245.66.187
+    clusterIPs:
+    - 10.245.66.187
+    internalTrafficPolicy: Cluster
+    ipFamilies:
+    - IPv4
+    ipFamilyPolicy: SingleStack
+    ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8081
+    selector:
+      k8s-app: hubble-ui
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      prometheus.io/port: "9153"
+      prometheus.io/scrape: "true"
+    creationTimestamp: "2025-01-18T14:31:33Z"
+    labels:
+      c3.doks.digitalocean.com/component: coredns
+      c3.doks.digitalocean.com/plane: data
+      doks.digitalocean.com/managed: "true"
+      k8s-app: kube-dns
+      kubernetes.io/cluster-service: "true"
+      kubernetes.io/name: CoreDNS
+    name: kube-dns
+    namespace: kube-system
+    resourceVersion: "1183"
+    uid: 021cd1d1-b17b-47ca-98d4-3e3db86b2efe
+  spec:
+    clusterIP: 10.245.0.10
+    clusterIPs:
+    - 10.245.0.10
+    internalTrafficPolicy: Cluster
+    ipFamilies:
+    - IPv4
+    ipFamilyPolicy: SingleStack
+    ports:
+    - name: dns
+      port: 53
+      protocol: UDP
+      targetPort: 53
+    - name: dns-tcp
+      port: 53
+      protocol: TCP
+      targetPort: 53
+    - name: metrics
+      port: 9153
+      protocol: TCP
+      targetPort: 9153
+    selector:
+      k8s-app: kube-dns
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: apps/v1
+  kind: DaemonSet
+  metadata:
+    annotations:
+      deprecated.daemonset.template.generation: "1"
+    creationTimestamp: "2025-01-18T14:28:59Z"
+    generation: 1
+    labels:
+      app.kubernetes.io/name: cilium-agent
+      app.kubernetes.io/part-of: cilium
+      c3.doks.digitalocean.com/component: cilium
+      c3.doks.digitalocean.com/plane: data
+      doks.digitalocean.com/managed: "true"
+      k8s-app: cilium
+      kubernetes.io/cluster-service: "true"
+    name: cilium
+    namespace: kube-system
+    resourceVersion: "963"
+    uid: 613a2de3-dea5-462a-a741-95b2b4d20cde
+  spec:
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        k8s-app: cilium
+        kubernetes.io/cluster-service: "true"
+    template:
+      metadata:
+        annotations:
+          clusterlint.digitalocean.com/disabled-checks: privileged-containers,non-root-user,resource-requirements,hostpath-volume
+          container.apparmor.security.beta.kubernetes.io/apply-sysctl-overwrites: unconfined
+          container.apparmor.security.beta.kubernetes.io/cilium-agent: unconfined
+          container.apparmor.security.beta.kubernetes.io/clean-cilium-state: unconfined
+          container.apparmor.security.beta.kubernetes.io/mount-cgroup: unconfined
+          kubectl.kubernetes.io/default-container: cilium-agent
+          prometheus.io/port: "9090"
+          prometheus.io/scrape: "true"
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/name: cilium-agent
+          app.kubernetes.io/part-of: cilium
+          doks.digitalocean.com/managed: "true"
+          k8s-app: cilium
+          kubernetes.io/cluster-service: "true"
+      spec:
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  k8s-app: cilium
+              topologyKey: kubernetes.io/hostname
+        automountServiceAccountToken: true
+        containers:
+        - args:
+          - --config-dir=/tmp/cilium/config-map
+          - --k8s-api-server=https://f43d5663-ddaa-413a-9dff-caad3dbd2467.k8s.ondigitalocean.com
+          - --ipv4-native-routing-cidr=10.244.0.0/16
+          command:
+          - cilium-agent
+          env:
+          - name: K8S_NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          - name: CILIUM_K8S_NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+          - name: CILIUM_CLUSTERMESH_CONFIG
+            value: /var/lib/cilium/clustermesh/
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                divisor: "1"
+                resource: limits.memory
+          - name: KUBERNETES_SERVICE_HOST
+            value: f43d5663-ddaa-413a-9dff-caad3dbd2467.k8s.ondigitalocean.com
+          - name: KUBERNETES_SERVICE_PORT
+            value: "443"
+          image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                - bash
+                - -c
+                - |
+                  set -o errexit
+                  set -o pipefail
+                  set -o nounset
+
+                  # When running in AWS ENI mode, it's likely that 'aws-node' has
+                  # had a chance to install SNAT iptables rules. These can result
+                  # in dropped traffic, so we should attempt to remove them.
+                  # We do it using a 'postStart' hook since this may need to run
+                  # for nodes which might have already been init'ed but may still
+                  # have dangling rules. This is safe because there are no
+                  # dependencies on anything that is part of the startup script
+                  # itself, and can be safely run multiple times per node (e.g. in
+                  # case of a restart).
+                  if [[ "$(iptables-save | grep -E -c 'AWS-SNAT-CHAIN|AWS-CONNMARK-CHAIN')" != "0" ]];
+                  then
+                      echo 'Deleting iptables rules created by the AWS CNI VPC plugin'
+                      iptables-save | grep -E -v 'AWS-SNAT-CHAIN|AWS-CONNMARK-CHAIN' | iptables-restore
+                  fi
+                  echo 'Done!'
+            preStop:
+              exec:
+                command:
+                - /cni-uninstall.sh
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              host: 127.0.0.1
+              httpHeaders:
+              - name: brief
+                value: "true"
+              path: /healthz
+              port: 9879
+              scheme: HTTP
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+          name: cilium-agent
+          ports:
+          - containerPort: 4244
+            hostPort: 4244
+            name: peer-service
+            protocol: TCP
+          - containerPort: 9090
+            hostPort: 9090
+            name: prometheus
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              host: 127.0.0.1
+              httpHeaders:
+              - name: brief
+                value: "true"
+              path: /healthz
+              port: 9879
+              scheme: HTTP
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 300m
+              memory: 300Mi
+          securityContext:
+            capabilities:
+              add:
+              - CHOWN
+              - KILL
+              - NET_ADMIN
+              - NET_RAW
+              - IPC_LOCK
+              - SYS_MODULE
+              - SYS_ADMIN
+              - SYS_RESOURCE
+              - DAC_OVERRIDE
+              - FOWNER
+              - SETGID
+              - SETUID
+              drop:
+              - ALL
+            seLinuxOptions:
+              level: s0
+              type: spc_t
+          startupProbe:
+            failureThreshold: 105
+            httpGet:
+              host: 127.0.0.1
+              httpHeaders:
+              - name: brief
+                value: "true"
+              path: /healthz
+              port: 9879
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 2
+            successThreshold: 1
+            timeoutSeconds: 1
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+          - mountPath: /host/proc/sys/net
+            name: host-proc-sys-net
+          - mountPath: /host/proc/sys/kernel
+            name: host-proc-sys-kernel
+          - mountPath: /sys/fs/bpf
+            mountPropagation: HostToContainer
+            name: bpf-maps
+          - mountPath: /var/run/cilium
+            name: cilium-run
+          - mountPath: /host/etc/cni/net.d
+            name: etc-cni-netd
+          - mountPath: /var/lib/cilium/clustermesh
+            name: clustermesh-secrets
+            readOnly: true
+          - mountPath: /etc/config
+            name: ip-masq-agent
+            readOnly: true
+          - mountPath: /lib/modules
+            name: lib-modules
+            readOnly: true
+          - mountPath: /run/xtables.lock
+            name: xtables-lock
+          - mountPath: /var/lib/cilium/tls/hubble
+            name: hubble-tls
+            readOnly: true
+          - mountPath: /tmp
+            name: tmp
+        dnsPolicy: ClusterFirst
+        hostNetwork: true
+        initContainers:
+        - command:
+          - bash
+          - -e
+          - -c
+          - |
+            # This will get the node object for the local node and search through
+            # the assigned addresses in the object in order to check whether CCM
+            # already set the internal AND external IP since cilium needs both
+            # for a clean startup.
+            # The grep matches regardless of the order of IPs.
+            until /host/usr/bin/kubectl get node ${HOSTNAME} -o jsonpath="{.status.addresses[*].type}" | grep -E "InternalIP.*ExternalIP|ExternalIP.*InternalIP"; do echo "waiting for CCM to store internal and external IP addresses in node object: ${HOSTNAME}" && sleep 3; done;
+          env:
+          - name: KUBERNETES_SERVICE_HOST
+            value: f43d5663-ddaa-413a-9dff-caad3dbd2467.k8s.ondigitalocean.com
+          - name: KUBERNETES_SERVICE_PORT
+            value: "443"
+          image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+          imagePullPolicy: IfNotPresent
+          name: delay-cilium-for-ccm
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /host/usr/bin/kubectl
+            name: host-kubectl
+        - command:
+          - cilium-dbg
+          - build-config
+          - --source=config-map:cilium-config
+          env:
+          - name: K8S_NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          - name: CILIUM_K8S_NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+          - name: KUBERNETES_SERVICE_HOST
+            value: f43d5663-ddaa-413a-9dff-caad3dbd2467.k8s.ondigitalocean.com
+          - name: KUBERNETES_SERVICE_PORT
+            value: "443"
+          image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+          imagePullPolicy: IfNotPresent
+          name: config
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+          - mountPath: /tmp
+            name: tmp
+        - command:
+          - sh
+          - -ec
+          - |
+            cp /usr/bin/cilium-mount /hostbin/cilium-mount;
+            nsenter --cgroup=/hostproc/1/ns/cgroup --mount=/hostproc/1/ns/mnt "${BIN_PATH}/cilium-mount" $CGROUP_ROOT;
+            rm /hostbin/cilium-mount
+          env:
+          - name: CGROUP_ROOT
+            value: /run/cilium/cgroupv2
+          - name: BIN_PATH
+            value: /opt/cni/bin
+          image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+          imagePullPolicy: IfNotPresent
+          name: mount-cgroup
+          resources: {}
+          securityContext:
+            capabilities:
+              add:
+              - SYS_ADMIN
+              - SYS_CHROOT
+              - SYS_PTRACE
+              drop:
+              - ALL
+            seLinuxOptions:
+              level: s0
+              type: spc_t
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+          - mountPath: /hostproc
+            name: hostproc
+          - mountPath: /hostbin
+            name: cni-path
+        - command:
+          - sh
+          - -ec
+          - |
+            cp /usr/bin/cilium-sysctlfix /hostbin/cilium-sysctlfix;
+            nsenter --mount=/hostproc/1/ns/mnt "${BIN_PATH}/cilium-sysctlfix";
+            rm /hostbin/cilium-sysctlfix
+          env:
+          - name: BIN_PATH
+            value: /opt/cni/bin
+          image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+          imagePullPolicy: IfNotPresent
+          name: apply-sysctl-overwrites
+          resources: {}
+          securityContext:
+            capabilities:
+              add:
+              - SYS_ADMIN
+              - SYS_CHROOT
+              - SYS_PTRACE
+              drop:
+              - ALL
+            seLinuxOptions:
+              level: s0
+              type: spc_t
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+          - mountPath: /hostproc
+            name: hostproc
+          - mountPath: /hostbin
+            name: cni-path
+        - args:
+          - mount | grep "/sys/fs/bpf type bpf" || mount -t bpf bpf /sys/fs/bpf
+          command:
+          - /bin/bash
+          - -c
+          - --
+          image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+          imagePullPolicy: IfNotPresent
+          name: mount-bpf-fs
+          resources: {}
+          securityContext:
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+          - mountPath: /sys/fs/bpf
+            mountPropagation: Bidirectional
+            name: bpf-maps
+        - command:
+          - /init-container.sh
+          env:
+          - name: CILIUM_ALL_STATE
+            valueFrom:
+              configMapKeyRef:
+                key: clean-cilium-state
+                name: cilium-config
+                optional: true
+          - name: CILIUM_BPF_STATE
+            valueFrom:
+              configMapKeyRef:
+                key: clean-cilium-bpf-state
+                name: cilium-config
+                optional: true
+          - name: WRITE_CNI_CONF_WHEN_READY
+            valueFrom:
+              configMapKeyRef:
+                key: write-cni-conf-when-ready
+                name: cilium-config
+                optional: true
+          - name: KUBERNETES_SERVICE_HOST
+            value: f43d5663-ddaa-413a-9dff-caad3dbd2467.k8s.ondigitalocean.com
+          - name: KUBERNETES_SERVICE_PORT
+            value: "443"
+          image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+          imagePullPolicy: IfNotPresent
+          name: clean-cilium-state
+          resources: {}
+          securityContext:
+            capabilities:
+              add:
+              - NET_ADMIN
+              - SYS_MODULE
+              - SYS_ADMIN
+              - SYS_RESOURCE
+              drop:
+              - ALL
+            seLinuxOptions:
+              level: s0
+              type: spc_t
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+          - mountPath: /sys/fs/bpf
+            name: bpf-maps
+          - mountPath: /run/cilium/cgroupv2
+            mountPropagation: HostToContainer
+            name: cilium-cgroup
+          - mountPath: /var/run/cilium
+            name: cilium-run
+        - command:
+          - /install-plugin.sh
+          image: docker.io/digitalocean/cilium:v1.15.8-conformance-fix
+          imagePullPolicy: IfNotPresent
+          name: install-cni-binaries
+          resources:
+            requests:
+              cpu: 100m
+              memory: 10Mi
+          securityContext:
+            capabilities:
+              drop:
+              - ALL
+            seLinuxOptions:
+              level: s0
+              type: spc_t
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+          - mountPath: /host/opt/cni/bin
+            name: cni-path
+        nodeSelector:
+          kubernetes.io/os: linux
+        priorityClassName: system-node-critical
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext:
+          appArmorProfile:
+            type: Unconfined
+        serviceAccount: cilium
+        serviceAccountName: cilium
+        terminationGracePeriodSeconds: 1
+        tolerations:
+        - operator: Exists
+        volumes:
+        - hostPath:
+            path: /usr/bin/kubectl
+            type: File
+          name: host-kubectl
+        - emptyDir: {}
+          name: tmp
+        - hostPath:
+            path: /var/run/cilium
+            type: DirectoryOrCreate
+          name: cilium-run
+        - hostPath:
+            path: /sys/fs/bpf
+            type: DirectoryOrCreate
+          name: bpf-maps
+        - hostPath:
+            path: /proc
+            type: Directory
+          name: hostproc
+        - hostPath:
+            path: /run/cilium/cgroupv2
+            type: DirectoryOrCreate
+          name: cilium-cgroup
+        - hostPath:
+            path: /opt/cni/bin
+            type: DirectoryOrCreate
+          name: cni-path
+        - hostPath:
+            path: /etc/cni/net.d
+            type: DirectoryOrCreate
+          name: etc-cni-netd
+        - hostPath:
+            path: /lib/modules
+            type: ""
+          name: lib-modules
+        - hostPath:
+            path: /run/xtables.lock
+            type: FileOrCreate
+          name: xtables-lock
+        - name: clustermesh-secrets
+          projected:
+            defaultMode: 256
+            sources:
+            - secret:
+                name: cilium-clustermesh
+                optional: true
+            - secret:
+                items:
+                - key: tls.key
+                  path: common-etcd-client.key
+                - key: tls.crt
+                  path: common-etcd-client.crt
+                - key: ca.crt
+                  path: common-etcd-client-ca.crt
+                name: clustermesh-apiserver-remote-cert
+                optional: true
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: config
+              path: ip-masq-agent
+            name: ip-masq-agent
+            optional: true
+          name: ip-masq-agent
+        - hostPath:
+            path: /proc/sys/net
+            type: Directory
+          name: host-proc-sys-net
+        - hostPath:
+            path: /proc/sys/kernel
+            type: Directory
+          name: host-proc-sys-kernel
+        - name: hubble-tls
+          projected:
+            defaultMode: 256
+            sources:
+            - secret:
+                items:
+                - key: tls.crt
+                  path: server.crt
+                - key: tls.key
+                  path: server.key
+                - key: ca.crt
+                  path: client-ca.crt
+                name: hubble-server-certs
+                optional: true
+    updateStrategy:
+      rollingUpdate:
+        maxSurge: 0
+        maxUnavailable: 10%
+      type: RollingUpdate
+  status:
+    currentNumberScheduled: 1
+    desiredNumberScheduled: 1
+    numberAvailable: 1
+    numberMisscheduled: 0
+    numberReady: 1
+    observedGeneration: 1
+    updatedNumberScheduled: 1
+- apiVersion: apps/v1
+  kind: DaemonSet
+  metadata:
+    annotations:
+      deprecated.daemonset.template.generation: "1"
+    creationTimestamp: "2025-01-18T14:31:20Z"
+    generation: 1
+    labels:
+      app: cpc-bridge-proxy
+      c3.doks.digitalocean.com/component: cpc-bridge-proxy
+      c3.doks.digitalocean.com/plane: data
+      c3.doks.digitalocean.com/variant: legacy
+      doks.digitalocean.com/managed: "true"
+    name: cpc-bridge-proxy
+    namespace: kube-system
+    resourceVersion: "1176"
+    uid: 86527261-e66b-4773-8793-0b04842c38bf
+  spec:
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: cpc-bridge-proxy
+    template:
+      metadata:
+        annotations:
+          clusterlint.digitalocean.com/disabled-checks: resource-requirements
+        creationTimestamp: null
+        labels:
+          app: cpc-bridge-proxy
+          doks.digitalocean.com/managed: "true"
+      spec:
+        automountServiceAccountToken: false
+        containers:
+        - image: digitalocean/cpbridge:1.27.1
+          imagePullPolicy: IfNotPresent
+          name: cpc-bridge-proxy
+          resources:
+            requests:
+              cpu: 100m
+              memory: 75Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /etc/nginx
+            name: cpc-bridge-proxy-config
+            readOnly: true
+        dnsPolicy: ClusterFirst
+        hostNetwork: true
+        initContainers:
+        - command:
+          - /bin/bash
+          - -c
+          - |
+            set -o errexit
+            set -o pipefail
+            set -o nounset
+            ipt_nat="iptables-legacy -t nat"
+            # Avoid racing with kube-proxy on the initial iptables rules population which makes the rule order indeterministic.
+            until ${ipt_nat} --list KUBE-SERVICES > /dev/null; do echo "waiting for kube-proxy to populate iptables rules"; sleep 3; done
+            ipt_output_args="OUTPUT -p tcp -d 10.245.0.1/32 --dport 443 -j DNAT --to-destination 100.65.16.196:16443"
+            ipt_prerouting_args="PREROUTING -p tcp -d 100.65.16.196 --dport 443 -j DNAT --to-destination 100.65.16.196:16443"
+            ${ipt_nat} --check ${ipt_output_args} || ${ipt_nat} --insert ${ipt_output_args}
+            ${ipt_nat} --check ${ipt_prerouting_args} || ${ipt_nat} --insert ${ipt_prerouting_args}
+          image: digitalocean/cpbridge:1.27.1
+          imagePullPolicy: IfNotPresent
+          name: init-iptables
+          resources: {}
+          securityContext:
+            capabilities:
+              add:
+              - NET_ADMIN
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        priorityClassName: system-node-critical
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - operator: Exists
+        volumes:
+        - configMap:
+            defaultMode: 420
+            name: cpc-bridge-proxy-config
+          name: cpc-bridge-proxy-config
+    updateStrategy:
+      rollingUpdate:
+        maxSurge: 0
+        maxUnavailable: 1
+      type: RollingUpdate
+  status:
+    currentNumberScheduled: 1
+    desiredNumberScheduled: 1
+    numberAvailable: 1
+    numberMisscheduled: 0
+    numberReady: 1
+    observedGeneration: 1
+    updatedNumberScheduled: 1
+- apiVersion: apps/v1
+  kind: DaemonSet
+  metadata:
+    annotations:
+      deprecated.daemonset.template.generation: "1"
+    creationTimestamp: "2025-01-18T14:31:40Z"
+    generation: 1
+    labels:
+      c3.doks.digitalocean.com/component: csi-node-service
+      c3.doks.digitalocean.com/plane: data
+      doks.digitalocean.com/managed: "true"
+    name: csi-do-node
+    namespace: kube-system
+    resourceVersion: "1319"
+    uid: c71444d6-688d-475b-af10-2fca9546dd76
+  spec:
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: csi-do-node
+    template:
+      metadata:
+        annotations:
+          clusterlint.digitalocean.com/disabled-checks: privileged-containers,non-root-user,resource-requirements,hostpath-volume
+          kubectl.kubernetes.io/default-container: csi-do-plugin
+        creationTimestamp: null
+        labels:
+          app: csi-do-node
+          doks.digitalocean.com/managed: "true"
+          role: csi-do
+      spec:
+        containers:
+        - args:
+          - --v=5
+          - --csi-address=$(ADDRESS)
+          - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+          env:
+          - name: ADDRESS
+            value: /csi/csi.sock
+          - name: DRIVER_REG_SOCK_PATH
+            value: /var/lib/kubelet/plugins/dobs.csi.digitalocean.com/csi.sock
+          - name: KUBE_NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.11.1
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - /bin/sh
+                - -c
+                - rm -rf /registration/dobs.csi.digitalocean.com /registration/dobs.csi.digitalocean.com-reg.sock
+          name: csi-node-driver-registrar
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /csi/
+            name: plugin-dir
+          - mountPath: /registration/
+            name: registration-dir
+        - args:
+          - --endpoint=$(CSI_ENDPOINT)
+          - --validate-attachment=true
+          - --volume-limit=15
+          - --url=https://api.digitalocean.com
+          - --driver-name=dobs.csi.digitalocean.com
+          env:
+          - name: CSI_ENDPOINT
+            value: unix:///csi/csi.sock
+          image: docker.io/digitalocean/do-csi-plugin:v4.12.0
+          imagePullPolicy: Always
+          name: csi-do-plugin
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: true
+            capabilities:
+              add:
+              - SYS_ADMIN
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /csi
+            name: plugin-dir
+          - mountPath: /var/lib/kubelet
+            mountPropagation: Bidirectional
+            name: pods-mount-dir
+          - mountPath: /dev
+            name: device-dir
+        dnsPolicy: ClusterFirst
+        hostNetwork: true
+        priorityClassName: system-node-critical
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        serviceAccount: csi-do-node-sa
+        serviceAccountName: csi-do-node-sa
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - effect: NoExecute
+          operator: Exists
+        - effect: NoSchedule
+          operator: Exists
+        - key: CriticalAddonsOnly
+          operator: Exists
+        volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: DirectoryOrCreate
+          name: registration-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins/dobs.csi.digitalocean.com
+            type: DirectoryOrCreate
+          name: plugin-dir
+        - hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+          name: pods-mount-dir
+        - hostPath:
+            path: /dev
+            type: ""
+          name: device-dir
+    updateStrategy:
+      rollingUpdate:
+        maxSurge: 0
+        maxUnavailable: 10%
+      type: RollingUpdate
+  status:
+    currentNumberScheduled: 1
+    desiredNumberScheduled: 1
+    numberAvailable: 1
+    numberMisscheduled: 0
+    numberReady: 1
+    observedGeneration: 1
+    updatedNumberScheduled: 1
+- apiVersion: apps/v1
+  kind: DaemonSet
+  metadata:
+    annotations:
+      deprecated.daemonset.template.generation: "1"
+    creationTimestamp: "2025-01-18T14:31:52Z"
+    generation: 1
+    labels:
+      app: do-node-agent
+      c3.doks.digitalocean.com/component: do-node-agent
+      c3.doks.digitalocean.com/plane: data
+      doks.digitalocean.com/managed: "true"
+    name: do-node-agent
+    namespace: kube-system
+    resourceVersion: "1391"
+    uid: 7a4b852b-7ae7-4c33-b819-bf0a526c0b41
+  spec:
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: do-node-agent
+    template:
+      metadata:
+        annotations:
+          clusterlint.digitalocean.com/disabled-checks: resource-requirements,hostpath-volume
+        creationTimestamp: null
+        labels:
+          app: do-node-agent
+          doks.digitalocean.com/managed: "true"
+      spec:
+        containers:
+        - args:
+          - '@/etc/config/do-agent-config'
+          - --path.procfs=/host/proc
+          - --path.sysfs=/host/sys
+          - --k8s-metrics-path=http://kube-state-metrics.kube-system.svc.cluster.local:8080/metrics
+          - --additional-label=kubernetes_cluster_uuid:f43d5663-ddaa-413a-9dff-caad3dbd2467
+          command:
+          - /bin/do-agent
+          image: docker.io/digitalocean/do-agent:3.16.9
+          imagePullPolicy: IfNotPresent
+          name: do-node-agent
+          resources:
+            limits:
+              memory: 300Mi
+            requests:
+              cpu: 102m
+              memory: 80Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /host/proc
+            name: proc
+            readOnly: true
+          - mountPath: /host/sys
+            name: sys
+            readOnly: true
+          - mountPath: /host/root
+            mountPropagation: HostToContainer
+            name: root
+            readOnly: true
+          - mountPath: /etc/config
+            name: dynamic-config
+        dnsPolicy: ClusterFirstWithHostNet
+        hostNetwork: true
+        initContainers:
+        - command:
+          - sh
+          - -c
+          - |
+            set -o errexit
+            set -o pipefail
+            set -o nounset
+
+            KUBECTL=/host/usr/bin/kubectl
+            POOL_ID="$(${KUBECTL} get node ${NODE_NAME} -o jsonpath='{.metadata.labels.doks\.digitalocean\.com/node-pool-id}')"
+            [[ -z "${POOL_ID}" ]] && echo "Pool ID label missing" && exit 1
+            echo "--additional-label=kubernetes_node_pool_uuid:${POOL_ID}" > /etc/config/do-agent-config
+            echo "Pool ID configured: ${POOL_ID}"
+          env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          image: gcr.io/distroless/static-debian12:debug-nonroot-amd64
+          imagePullPolicy: IfNotPresent
+          name: dynamic-config
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /etc/config
+            name: dynamic-config
+          - mountPath: /host/usr/bin/kubectl
+            name: host-kubectl
+        nodeSelector:
+          kubernetes.io/os: linux
+        priorityClassName: system-node-critical
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
+        serviceAccount: do-agent
+        serviceAccountName: do-agent
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - operator: Exists
+        volumes:
+        - hostPath:
+            path: /proc
+            type: ""
+          name: proc
+        - hostPath:
+            path: /sys
+            type: ""
+          name: sys
+        - hostPath:
+            path: /
+            type: ""
+          name: root
+        - emptyDir: {}
+          name: dynamic-config
+        - hostPath:
+            path: /usr/bin/kubectl
+            type: File
+          name: host-kubectl
+    updateStrategy:
+      rollingUpdate:
+        maxSurge: 0
+        maxUnavailable: 1
+      type: RollingUpdate
+  status:
+    currentNumberScheduled: 1
+    desiredNumberScheduled: 1
+    numberAvailable: 1
+    numberMisscheduled: 0
+    numberReady: 1
+    observedGeneration: 1
+    updatedNumberScheduled: 1
+- apiVersion: apps/v1
+  kind: DaemonSet
+  metadata:
+    annotations:
+      deprecated.daemonset.template.generation: "1"
+    creationTimestamp: "2025-01-18T14:31:14Z"
+    generation: 1
+    labels:
+      addonmanager.kubernetes.io/mode: Reconcile
+      c3.doks.digitalocean.com/component: konnectivity-agent
+      c3.doks.digitalocean.com/plane: data
+      doks.digitalocean.com/managed: "true"
+      k8s-app: konnectivity-agent
+    name: konnectivity-agent
+    namespace: kube-system
+    resourceVersion: "1112"
+    uid: cc1cf2ac-29c3-4c89-8151-11b5d176d770
+  spec:
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        k8s-app: konnectivity-agent
+    template:
+      metadata:
+        annotations:
+          clusterlint.digitalocean.com/disabled-checks: resource-requirements
+        creationTimestamp: null
+        labels:
+          doks.digitalocean.com/managed: "true"
+          k8s-app: konnectivity-agent
+      spec:
+        containers:
+        - args:
+          - --logtostderr=true
+          - --ca-cert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          - --proxy-server-port=8132
+          - --admin-server-port=8133
+          - --health-server-port=8134
+          - --keepalive-time=5m
+          - --service-account-token-path=/var/run/secrets/tokens/konnectivity-agent-token
+          - --proxy-server-host=f43d5663-ddaa-413a-9dff-caad3dbd2467.k8s.ondigitalocean.com
+          command:
+          - /proxy-agent
+          image: registry.k8s.io/kas-network-proxy/proxy-agent:v0.30.2
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 8134
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 15
+          name: konnectivity-agent
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /var/run/secrets/tokens
+            name: konnectivity-agent-token
+        dnsPolicy: Default
+        priorityClassName: system-cluster-critical
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        serviceAccount: konnectivity-agent
+        serviceAccountName: konnectivity-agent
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - operator: Exists
+        volumes:
+        - name: konnectivity-agent-token
+          projected:
+            defaultMode: 420
+            sources:
+            - serviceAccountToken:
+                audience: system:konnectivity-server
+                expirationSeconds: 3600
+                path: konnectivity-agent-token
+    updateStrategy:
+      rollingUpdate:
+        maxSurge: 0
+        maxUnavailable: 1
+      type: RollingUpdate
+  status:
+    currentNumberScheduled: 1
+    desiredNumberScheduled: 1
+    numberAvailable: 1
+    numberMisscheduled: 0
+    numberReady: 1
+    observedGeneration: 1
+    updatedNumberScheduled: 1
+- apiVersion: apps/v1
+  kind: DaemonSet
+  metadata:
+    annotations:
+      deprecated.daemonset.template.generation: "1"
+    creationTimestamp: "2025-01-18T14:28:52Z"
+    generation: 1
+    labels:
+      c3.doks.digitalocean.com/component: kube-proxy
+      c3.doks.digitalocean.com/plane: data
+      c3.doks.digitalocean.com/variant: legacy
+      doks.digitalocean.com/managed: "true"
+      k8s-app: kube-proxy
+      tier: node
+    name: kube-proxy
+    namespace: kube-system
+    resourceVersion: "843"
+    uid: 1be7aa2f-bcb5-4bc4-82e5-c95b1a20c2f3
+  spec:
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        k8s-app: kube-proxy
+        tier: node
+    template:
+      metadata:
+        annotations:
+          clusterlint.digitalocean.com/disabled-checks: privileged-containers,non-root-user,resource-requirements,hostpath-volume
+        creationTimestamp: null
+        labels:
+          doks.digitalocean.com/managed: "true"
+          k8s-app: kube-proxy
+          tier: node
+      spec:
+        containers:
+        - command:
+          - kube-proxy
+          - --config=/etc/kubernetes/config/kube-proxy-config.yaml
+          image: registry.k8s.io/kube-proxy:v1.31.1
+          imagePullPolicy: IfNotPresent
+          name: kube-proxy
+          resources:
+            requests:
+              memory: 125Mi
+          securityContext:
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /etc/kubernetes
+            name: kube-proxy-kubeconfig
+            readOnly: true
+          - mountPath: /etc/kubernetes/config
+            name: kube-proxy-config
+            readOnly: true
+        dnsPolicy: ClusterFirst
+        hostNetwork: true
+        priorityClassName: system-node-critical
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        serviceAccount: kube-proxy
+        serviceAccountName: kube-proxy
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - effect: NoExecute
+          operator: Exists
+        - effect: NoSchedule
+          operator: Exists
+        - key: CriticalAddonsOnly
+          operator: Exists
+        volumes:
+        - name: kube-proxy-kubeconfig
+          secret:
+            defaultMode: 420
+            secretName: kube-proxy
+        - configMap:
+            defaultMode: 420
+            name: kube-proxy
+          name: kube-proxy-config
+    updateStrategy:
+      rollingUpdate:
+        maxSurge: 0
+        maxUnavailable: 1
+      type: RollingUpdate
+  status:
+    currentNumberScheduled: 1
+    desiredNumberScheduled: 1
+    numberAvailable: 1
+    numberMisscheduled: 0
+    numberReady: 1
+    observedGeneration: 1
+    updatedNumberScheduled: 1
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "1"
+    creationTimestamp: "2025-01-18T14:31:33Z"
+    generation: 1
+    labels:
+      c3.doks.digitalocean.com/component: coredns
+      c3.doks.digitalocean.com/plane: data
+      doks.digitalocean.com/managed: "true"
+      k8s-app: kube-dns
+      kubernetes.io/name: CoreDNS
+    name: coredns
+    namespace: kube-system
+    resourceVersion: "1243"
+    uid: de24cf96-fc4e-4bd6-b57c-3206be0fe674
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 2
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        k8s-app: kube-dns
+    strategy:
+      rollingUpdate:
+        maxSurge: 100%
+        maxUnavailable: 1
+      type: RollingUpdate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          doks.digitalocean.com/managed: "true"
+          k8s-app: kube-dns
+      spec:
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                - key: doks.digitalocean.com/gpu-brand
+                  operator: DoesNotExist
+              weight: 50
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: k8s-app
+                    operator: In
+                    values:
+                    - kube-dns
+                topologyKey: kubernetes.io/hostname
+              weight: 100
+        containers:
+        - args:
+          - -conf
+          - /etc/coredns/Corefile
+          image: docker.io/coredns/coredns:1.11.1
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /health
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          name: coredns
+          ports:
+          - containerPort: 53
+            name: dns
+            protocol: UDP
+          - containerPort: 53
+            name: dns-tcp
+            protocol: TCP
+          - containerPort: 9153
+            name: metrics
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ready
+              port: 8181
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 170Mi
+            requests:
+              cpu: 100m
+              memory: 70Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+              - NET_BIND_SERVICE
+              drop:
+              - all
+            readOnlyRootFilesystem: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /etc/coredns
+            name: config-volume
+            readOnly: true
+          - mountPath: /etc/coredns/custom
+            name: custom-config-volume
+            readOnly: true
+        dnsPolicy: Default
+        nodeSelector:
+          kubernetes.io/os: linux
+        priorityClassName: system-cluster-critical
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        serviceAccount: coredns
+        serviceAccountName: coredns
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - key: nvidia.com/gpu
+          operator: Exists
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: Corefile
+              path: Corefile
+            name: coredns
+          name: config-volume
+        - configMap:
+            defaultMode: 420
+            name: coredns-custom
+            optional: true
+          name: custom-config-volume
+  status:
+    availableReplicas: 2
+    conditions:
+    - lastTransitionTime: "2025-01-18T14:31:38Z"
+      lastUpdateTime: "2025-01-18T14:31:38Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    - lastTransitionTime: "2025-01-18T14:31:33Z"
+      lastUpdateTime: "2025-01-18T14:31:38Z"
+      message: ReplicaSet "coredns-c5c6457c" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    observedGeneration: 1
+    readyReplicas: 2
+    replicas: 2
+    updatedReplicas: 2
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "1"
+    creationTimestamp: "2025-01-18T14:28:59Z"
+    generation: 1
+    labels:
+      app.kubernetes.io/name: hubble-relay
+      app.kubernetes.io/part-of: cilium
+      c3.doks.digitalocean.com/component: cilium
+      c3.doks.digitalocean.com/plane: data
+      doks.digitalocean.com/managed: "true"
+      k8s-app: hubble-relay
+    name: hubble-relay
+    namespace: kube-system
+    resourceVersion: "992"
+    uid: 67491be6-65bb-41a0-b1db-481f066fbec4
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        k8s-app: hubble-relay
+    strategy:
+      rollingUpdate:
+        maxSurge: 25%
+        maxUnavailable: 1
+      type: RollingUpdate
+    template:
+      metadata:
+        annotations:
+          cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+          clusterlint.digitalocean.com/disabled-checks: resource-requirements
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/name: hubble-relay
+          app.kubernetes.io/part-of: cilium
+          doks.digitalocean.com/managed: "true"
+          k8s-app: hubble-relay
+      spec:
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                - key: doks.digitalocean.com/gpu-brand
+                  operator: DoesNotExist
+              weight: 100
+          podAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  k8s-app: cilium
+              topologyKey: kubernetes.io/hostname
+        automountServiceAccountToken: false
+        containers:
+        - args:
+          - serve
+          command:
+          - hubble-relay
+          image: quay.io/cilium/hubble-relay:v1.15.8@sha256:47e8a19f60d0d226ec3d2c675ec63908f1f2fb936a39897f2e3255b3bab01ad6
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 12
+            grpc:
+              port: 4222
+              service: ""
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 10
+          name: hubble-relay
+          ports:
+          - containerPort: 4245
+            name: grpc
+            protocol: TCP
+          resources: {}
+          securityContext:
+            capabilities:
+              drop:
+              - ALL
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+          - mountPath: /etc/hubble-relay
+            name: config
+            readOnly: true
+          - mountPath: /var/lib/hubble-relay/tls
+            name: tls
+            readOnly: true
+        dnsPolicy: ClusterFirst
+        nodeSelector:
+          kubernetes.io/os: linux
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext:
+          fsGroup: 65532
+        serviceAccount: hubble-relay
+        serviceAccountName: hubble-relay
+        terminationGracePeriodSeconds: 1
+        tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: config.yaml
+              path: config.yaml
+            name: hubble-relay-config
+          name: config
+        - name: tls
+          projected:
+            defaultMode: 256
+            sources:
+            - secret:
+                items:
+                - key: tls.crt
+                  path: client.crt
+                - key: tls.key
+                  path: client.key
+                - key: ca.crt
+                  path: hubble-server-ca.crt
+                name: hubble-relay-client-certs
+  status:
+    availableReplicas: 1
+    conditions:
+    - lastTransitionTime: "2025-01-18T14:28:59Z"
+      lastUpdateTime: "2025-01-18T14:28:59Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    - lastTransitionTime: "2025-01-18T14:28:59Z"
+      lastUpdateTime: "2025-01-18T14:31:01Z"
+      message: ReplicaSet "hubble-relay-67597fb8" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    observedGeneration: 1
+    readyReplicas: 1
+    replicas: 1
+    updatedReplicas: 1
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "1"
+    creationTimestamp: "2025-01-18T14:31:02Z"
+    generation: 1
+    labels:
+      app.kubernetes.io/name: hubble-ui
+      app.kubernetes.io/part-of: cilium
+      c3.doks.digitalocean.com/component: cilium
+      c3.doks.digitalocean.com/plane: data
+      doks.digitalocean.com/managed: "true"
+      k8s-app: hubble-ui
+    name: hubble-ui
+    namespace: kube-system
+    resourceVersion: "1056"
+    uid: 9670ac4e-f416-490e-818b-231243c599a7
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        k8s-app: hubble-ui
+    strategy:
+      rollingUpdate:
+        maxSurge: 25%
+        maxUnavailable: 1
+      type: RollingUpdate
+    template:
+      metadata:
+        annotations:
+          cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+          clusterlint.digitalocean.com/disabled-checks: resource-requirements
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/name: hubble-ui
+          app.kubernetes.io/part-of: cilium
+          doks.digitalocean.com/managed: "true"
+          k8s-app: hubble-ui
+      spec:
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                - key: doks.digitalocean.com/gpu-brand
+                  operator: DoesNotExist
+              weight: 100
+        automountServiceAccountToken: true
+        containers:
+        - image: quay.io/cilium/hubble-ui:v0.13.1@sha256:e2e9313eb7caf64b0061d9da0efbdad59c6c461f6ca1752768942bfeda0796c6
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 8081
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: frontend
+          ports:
+          - containerPort: 8081
+            name: http
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: 8081
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+          - mountPath: /etc/nginx/conf.d/default.conf
+            name: hubble-ui-nginx-conf
+            subPath: nginx.conf
+          - mountPath: /tmp
+            name: tmp-dir
+        - env:
+          - name: EVENTS_SERVER_PORT
+            value: "8090"
+          - name: FLOWS_API_ADDR
+            value: hubble-relay:80
+          image: quay.io/cilium/hubble-ui-backend:v0.13.1@sha256:0e0eed917653441fded4e7cdb096b7be6a3bddded5a2dd10812a27b1fc6ed95b
+          imagePullPolicy: IfNotPresent
+          name: backend
+          ports:
+          - containerPort: 8090
+            name: grpc
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+        dnsPolicy: ClusterFirst
+        nodeSelector:
+          kubernetes.io/os: linux
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext:
+          fsGroup: 1001
+          runAsGroup: 1001
+          runAsUser: 1001
+        serviceAccount: hubble-ui
+        serviceAccountName: hubble-ui
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+        volumes:
+        - configMap:
+            defaultMode: 420
+            name: hubble-ui-nginx
+          name: hubble-ui-nginx-conf
+        - emptyDir: {}
+          name: tmp-dir
+  status:
+    availableReplicas: 1
+    conditions:
+    - lastTransitionTime: "2025-01-18T14:31:02Z"
+      lastUpdateTime: "2025-01-18T14:31:02Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    - lastTransitionTime: "2025-01-18T14:31:02Z"
+      lastUpdateTime: "2025-01-18T14:31:11Z"
+      message: ReplicaSet "hubble-ui-79957d9f7b" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    observedGeneration: 1
+    readyReplicas: 1
+    replicas: 1
+    updatedReplicas: 1
+- apiVersion: apps/v1
+  kind: ReplicaSet
+  metadata:
+    annotations:
+      deployment.kubernetes.io/desired-replicas: "2"
+      deployment.kubernetes.io/max-replicas: "4"
+      deployment.kubernetes.io/revision: "1"
+    creationTimestamp: "2025-01-18T14:31:33Z"
+    generation: 1
+    labels:
+      doks.digitalocean.com/managed: "true"
+      k8s-app: kube-dns
+      pod-template-hash: c5c6457c
+    name: coredns-c5c6457c
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Deployment
+      name: coredns
+      uid: de24cf96-fc4e-4bd6-b57c-3206be0fe674
+    resourceVersion: "1242"
+    uid: 3b04d1f6-a95a-481c-bd9f-8cb012d756db
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        k8s-app: kube-dns
+        pod-template-hash: c5c6457c
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          doks.digitalocean.com/managed: "true"
+          k8s-app: kube-dns
+          pod-template-hash: c5c6457c
+      spec:
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                - key: doks.digitalocean.com/gpu-brand
+                  operator: DoesNotExist
+              weight: 50
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: k8s-app
+                    operator: In
+                    values:
+                    - kube-dns
+                topologyKey: kubernetes.io/hostname
+              weight: 100
+        containers:
+        - args:
+          - -conf
+          - /etc/coredns/Corefile
+          image: docker.io/coredns/coredns:1.11.1
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /health
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          name: coredns
+          ports:
+          - containerPort: 53
+            name: dns
+            protocol: UDP
+          - containerPort: 53
+            name: dns-tcp
+            protocol: TCP
+          - containerPort: 9153
+            name: metrics
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ready
+              port: 8181
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 170Mi
+            requests:
+              cpu: 100m
+              memory: 70Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+              - NET_BIND_SERVICE
+              drop:
+              - all
+            readOnlyRootFilesystem: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /etc/coredns
+            name: config-volume
+            readOnly: true
+          - mountPath: /etc/coredns/custom
+            name: custom-config-volume
+            readOnly: true
+        dnsPolicy: Default
+        nodeSelector:
+          kubernetes.io/os: linux
+        priorityClassName: system-cluster-critical
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        serviceAccount: coredns
+        serviceAccountName: coredns
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - key: nvidia.com/gpu
+          operator: Exists
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: Corefile
+              path: Corefile
+            name: coredns
+          name: config-volume
+        - configMap:
+            defaultMode: 420
+            name: coredns-custom
+            optional: true
+          name: custom-config-volume
+  status:
+    availableReplicas: 2
+    fullyLabeledReplicas: 2
+    observedGeneration: 1
+    readyReplicas: 2
+    replicas: 2
+- apiVersion: apps/v1
+  kind: ReplicaSet
+  metadata:
+    annotations:
+      deployment.kubernetes.io/desired-replicas: "1"
+      deployment.kubernetes.io/max-replicas: "2"
+      deployment.kubernetes.io/revision: "1"
+    creationTimestamp: "2025-01-18T14:28:59Z"
+    generation: 1
+    labels:
+      app.kubernetes.io/name: hubble-relay
+      app.kubernetes.io/part-of: cilium
+      doks.digitalocean.com/managed: "true"
+      k8s-app: hubble-relay
+      pod-template-hash: 67597fb8
+    name: hubble-relay-67597fb8
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Deployment
+      name: hubble-relay
+      uid: 67491be6-65bb-41a0-b1db-481f066fbec4
+    resourceVersion: "991"
+    uid: dec43676-2d16-4ea9-9494-4504fd2a6d7e
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        k8s-app: hubble-relay
+        pod-template-hash: 67597fb8
+    template:
+      metadata:
+        annotations:
+          cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+          clusterlint.digitalocean.com/disabled-checks: resource-requirements
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/name: hubble-relay
+          app.kubernetes.io/part-of: cilium
+          doks.digitalocean.com/managed: "true"
+          k8s-app: hubble-relay
+          pod-template-hash: 67597fb8
+      spec:
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                - key: doks.digitalocean.com/gpu-brand
+                  operator: DoesNotExist
+              weight: 100
+          podAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  k8s-app: cilium
+              topologyKey: kubernetes.io/hostname
+        automountServiceAccountToken: false
+        containers:
+        - args:
+          - serve
+          command:
+          - hubble-relay
+          image: quay.io/cilium/hubble-relay:v1.15.8@sha256:47e8a19f60d0d226ec3d2c675ec63908f1f2fb936a39897f2e3255b3bab01ad6
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 12
+            grpc:
+              port: 4222
+              service: ""
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 10
+          name: hubble-relay
+          ports:
+          - containerPort: 4245
+            name: grpc
+            protocol: TCP
+          resources: {}
+          securityContext:
+            capabilities:
+              drop:
+              - ALL
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+          - mountPath: /etc/hubble-relay
+            name: config
+            readOnly: true
+          - mountPath: /var/lib/hubble-relay/tls
+            name: tls
+            readOnly: true
+        dnsPolicy: ClusterFirst
+        nodeSelector:
+          kubernetes.io/os: linux
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext:
+          fsGroup: 65532
+        serviceAccount: hubble-relay
+        serviceAccountName: hubble-relay
+        terminationGracePeriodSeconds: 1
+        tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: config.yaml
+              path: config.yaml
+            name: hubble-relay-config
+          name: config
+        - name: tls
+          projected:
+            defaultMode: 256
+            sources:
+            - secret:
+                items:
+                - key: tls.crt
+                  path: client.crt
+                - key: tls.key
+                  path: client.key
+                - key: ca.crt
+                  path: hubble-server-ca.crt
+                name: hubble-relay-client-certs
+  status:
+    availableReplicas: 1
+    fullyLabeledReplicas: 1
+    observedGeneration: 1
+    readyReplicas: 1
+    replicas: 1
+- apiVersion: apps/v1
+  kind: ReplicaSet
+  metadata:
+    annotations:
+      deployment.kubernetes.io/desired-replicas: "1"
+      deployment.kubernetes.io/max-replicas: "2"
+      deployment.kubernetes.io/revision: "1"
+    creationTimestamp: "2025-01-18T14:31:02Z"
+    generation: 1
+    labels:
+      app.kubernetes.io/name: hubble-ui
+      app.kubernetes.io/part-of: cilium
+      doks.digitalocean.com/managed: "true"
+      k8s-app: hubble-ui
+      pod-template-hash: 79957d9f7b
+    name: hubble-ui-79957d9f7b
+    namespace: kube-system
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Deployment
+      name: hubble-ui
+      uid: 9670ac4e-f416-490e-818b-231243c599a7
+    resourceVersion: "1055"
+    uid: 9e86df08-a82a-4c87-b2e4-80beac45b93e
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        k8s-app: hubble-ui
+        pod-template-hash: 79957d9f7b
+    template:
+      metadata:
+        annotations:
+          cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+          clusterlint.digitalocean.com/disabled-checks: resource-requirements
+        creationTimestamp: null
+        labels:
+          app.kubernetes.io/name: hubble-ui
+          app.kubernetes.io/part-of: cilium
+          doks.digitalocean.com/managed: "true"
+          k8s-app: hubble-ui
+          pod-template-hash: 79957d9f7b
+      spec:
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                - key: doks.digitalocean.com/gpu-brand
+                  operator: DoesNotExist
+              weight: 100
+        automountServiceAccountToken: true
+        containers:
+        - image: quay.io/cilium/hubble-ui:v0.13.1@sha256:e2e9313eb7caf64b0061d9da0efbdad59c6c461f6ca1752768942bfeda0796c6
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 8081
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: frontend
+          ports:
+          - containerPort: 8081
+            name: http
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: 8081
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+          - mountPath: /etc/nginx/conf.d/default.conf
+            name: hubble-ui-nginx-conf
+            subPath: nginx.conf
+          - mountPath: /tmp
+            name: tmp-dir
+        - env:
+          - name: EVENTS_SERVER_PORT
+            value: "8090"
+          - name: FLOWS_API_ADDR
+            value: hubble-relay:80
+          image: quay.io/cilium/hubble-ui-backend:v0.13.1@sha256:0e0eed917653441fded4e7cdb096b7be6a3bddded5a2dd10812a27b1fc6ed95b
+          imagePullPolicy: IfNotPresent
+          name: backend
+          ports:
+          - containerPort: 8090
+            name: grpc
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+        dnsPolicy: ClusterFirst
+        nodeSelector:
+          kubernetes.io/os: linux
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext:
+          fsGroup: 1001
+          runAsGroup: 1001
+          runAsUser: 1001
+        serviceAccount: hubble-ui
+        serviceAccountName: hubble-ui
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+        volumes:
+        - configMap:
+            defaultMode: 420
+            name: hubble-ui-nginx
+          name: hubble-ui-nginx-conf
+        - emptyDir: {}
+          name: tmp-dir
+  status:
+    availableReplicas: 1
+    fullyLabeledReplicas: 1
+    observedGeneration: 1
+    readyReplicas: 1
+    replicas: 1
+kind: List
+metadata:
+  resourceVersion: ""

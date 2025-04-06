@@ -1,10 +1,9 @@
-use bevy::prelude::*;
-use leafwing_input_manager::plugin::InputManagerPlugin;
-
 use super::{
     player_component::{Action, GroundedState},
     player_systems::{check_grounded, detect_enter_door, player_movement, spawn_player},
 };
+use bevy::prelude::*;
+use leafwing_input_manager::plugin::InputManagerPlugin;
 
 pub struct PlayerPlugin;
 
