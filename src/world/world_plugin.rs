@@ -40,7 +40,6 @@ impl Plugin for WorldPlugin {
                 Update,
                 handle_floor_plan_event.run_if(in_state(GameState::InGame)),
             )
-            //.add_systems(OnEnter(GameState::TransitioningSetup), transition_setup)
             .add_systems(
                 Update,
                 transition_setup.run_if(in_state(GameState::TransitioningSetup)),
