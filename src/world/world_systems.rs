@@ -40,10 +40,10 @@ pub fn handle_floor_plan_event(
             should_transition = true;
         }
     }
-
     if should_transition {
+        warn!("Handling floorplan event");
         debug!("Transitioning to new floorplan");
-        next_state.set(GameState::TransitioningOut);
+        next_state.set(GameState::TransitioningSetup);
     }
 }
 
@@ -85,7 +85,6 @@ fn determine_you_are_here(
 pub fn spawn_world(
     world_config: Res<WorldConfig>,
     mut commands: Commands,
-    platform_query: Query<(Entity, &Transform), With<PlatformMarker>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     current_floorplan: ResMut<CurrentFloorPlan>,
@@ -93,12 +92,12 @@ pub fn spawn_world(
 ) {
     if let Some(floorplan) = &current_floorplan.floorplan {
         // Animate existing platforms to rise out of view
-        for (entity, transform) in platform_query.iter() {
-            commands.entity(entity).insert(PlatformTransition {
-                target_y: transform.translation.y + 100.0, // Move up by 1000 units
-                speed: 0.5,                                // Adjust speed as needed
-            });
-        }
+        // for (entity, transform) in platform_query.iter() {
+        //     commands.entity(entity).insert(PlatformTransition {
+        //         target_y: transform.translation.y + 100.0, // Move up by 1000 units
+        //         speed: 0.5,                                // Adjust speed as needed
+        //     });
+        // }
 
         let previous_room = current_floorplan.previous_room.clone();
 
@@ -129,7 +128,11 @@ pub fn spawn_world(
                 if connected_rooms_and_doors.contains_key(&node_index) {
                     if let Some(door) = connected_rooms_and_doors.remove(&node_index) {
                         // if this is the room we just came from then it is an exit
-                        let is_exit = Some(room) == previous_room.as_ref();
+                        let is_exit = if let Some(previous_room) = &previous_room {
+                            previous_room.id == room.id
+                        } else {
+                            false
+                        };
 
                         // is a connected room - we want to spawn a door
                         spawn_connected_room(
@@ -172,8 +175,6 @@ fn spawn_connected_room(
     door: Door,
     is_exit: bool, // Whether this room is the previous room
 ) {
-    debug!("Spawning connected room");
-
     let room_height = if is_exit {
         world_config.exit_room_y
     } else {
@@ -304,6 +305,26 @@ fn calculate_room_position(world_config: &WorldConfig, index: NodeIndex, yoffset
     Vec3::new(x, 0.0 + yoffset, z)
 }
 
+/// system to mark the current platform entities for transition
+pub fn transition_setup(
+    platform_query: Query<(Entity, &Transform), With<PlatformMarker>>,
+    mut commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    // Animate existing platforms to rise out of view
+    for (entity, transform) in platform_query.iter() {
+        commands.entity(entity).insert(PlatformTransition {
+            target_y: transform.translation.y + 100.0, // Move up by 1000 units
+            speed: 0.5,                                // Adjust speed as needed
+        });
+    }
+
+    // todo: despawn the player
+
+    next_state.set(GameState::TransitioningOut);
+}
+
+/// system to animate the transitioning out of current platform entities
 pub fn platform_transition_system(
     mut query: Query<(Entity, &mut Transform, &PlatformTransition)>,
     mut commands: Commands,

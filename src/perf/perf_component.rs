@@ -484,8 +484,9 @@ impl PerfUiEntry for GameStateText {
         match state.get() {
             GameState::InGame => Some("In Game".to_string()),
             GameState::Paused => Some("Paused".to_string()),
-            GameState::TransitioningIn => Some("Transitioning In".to_string()),
+            GameState::TransitioningSetup => Some("Transitioning Setup".to_string()),
             GameState::TransitioningOut => Some("Transitioning Out".to_string()),
+            GameState::TransitioningIn => Some("Transitioning In".to_string()),
         }
     }
 

@@ -1,6 +1,8 @@
 use super::{
     world_component::{CurrentFloorPlan, WorldConfig, WorldPlugin},
-    world_systems::{handle_floor_plan_event, platform_transition_system, spawn_world},
+    world_systems::{
+        handle_floor_plan_event, platform_transition_system, spawn_world, transition_setup,
+    },
 };
 use crate::state::GameState;
 use bevy::prelude::*;
@@ -37,6 +39,11 @@ impl Plugin for WorldPlugin {
             .add_systems(
                 Update,
                 handle_floor_plan_event.run_if(in_state(GameState::InGame)),
+            )
+            //.add_systems(OnEnter(GameState::TransitioningSetup), transition_setup)
+            .add_systems(
+                Update,
+                transition_setup.run_if(in_state(GameState::TransitioningSetup)),
             )
             .add_systems(OnEnter(GameState::TransitioningIn), spawn_world)
             .add_systems(
