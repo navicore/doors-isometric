@@ -41,9 +41,8 @@ pub fn handle_floor_plan_event(
         }
     }
     if should_transition {
-        warn!("Handling floorplan event");
         debug!("Transitioning to new floorplan");
-        next_state.set(GameState::TransitioningSetup);
+        next_state.set(GameState::TransitioningOutSetup);
     }
 }
 
@@ -76,7 +75,7 @@ fn determine_you_are_here(floorplan: &FloorPlan) -> Option<Room> {
         .map_or(None, |start_room| Some(start_room.clone()))
 }
 
-pub fn spawn_world(
+pub fn transition_in_setup(
     world_config: Res<WorldConfig>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -143,7 +142,7 @@ pub fn spawn_world(
 
         debug!("Spawned world with {} rooms", floorplan.graph.node_count());
     }
-    next_state.set(GameState::InGame);
+    next_state.set(GameState::TransitioningIn);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -287,8 +286,15 @@ fn calculate_room_position(world_config: &WorldConfig, index: NodeIndex, yoffset
     Vec3::new(x, 0.0 + yoffset, z)
 }
 
+pub fn platform_transitioning_in(
+    mut _commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    next_state.set(GameState::InGame);
+}
+
 /// system to mark the current platform entities for transition
-pub fn transition_setup(
+pub fn transition_out_setup(
     platform_query: Query<(Entity, &Transform), With<PlatformMarker>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
@@ -301,13 +307,11 @@ pub fn transition_setup(
         });
     }
 
-    // todo: despawn the player
-
     next_state.set(GameState::TransitioningOut);
 }
 
 /// system to animate the transitioning out of current platform entities
-pub fn platform_transition_system(
+pub fn platform_transitioning_out(
     mut query: Query<(Entity, &mut Transform, &PlatformTransition)>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
@@ -329,6 +333,6 @@ pub fn platform_transition_system(
     }
 
     if !transitions_remaining {
-        next_state.set(GameState::TransitioningIn);
+        next_state.set(GameState::TransitioningInSetup);
     }
 }
