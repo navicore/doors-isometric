@@ -201,6 +201,6 @@ fn handle_door_entry(
         debug!("Entering room: {:?}", room);
 
         commands.entity(player).despawn();
-        next_state.set(GameState::TransitioningSetup);
+        next_state.set(GameState::TransitioningOutSetup);
     }
 }

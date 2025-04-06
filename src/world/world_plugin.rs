@@ -1,7 +1,8 @@
 use super::{
     world_component::{CurrentFloorPlan, WorldConfig, WorldPlugin},
     world_systems::{
-        handle_floor_plan_event, platform_transition_system, spawn_world, transition_setup,
+        handle_floor_plan_event, platform_transitioning_in, platform_transitioning_out,
+        transition_in_setup, transition_out_setup,
     },
 };
 use crate::state::GameState;
@@ -42,12 +43,12 @@ impl Plugin for WorldPlugin {
             )
             .add_systems(
                 Update,
-                transition_setup.run_if(in_state(GameState::TransitioningSetup)),
-            )
-            .add_systems(OnEnter(GameState::TransitioningIn), spawn_world)
-            .add_systems(
-                Update,
-                platform_transition_system.run_if(in_state(GameState::TransitioningOut)),
+                (
+                    transition_out_setup.run_if(in_state(GameState::TransitioningOutSetup)),
+                    platform_transitioning_out.run_if(in_state(GameState::TransitioningOut)),
+                    transition_in_setup.run_if(in_state(GameState::TransitioningInSetup)),
+                    platform_transitioning_in.run_if(in_state(GameState::TransitioningIn)),
+                ),
             );
     }
 }

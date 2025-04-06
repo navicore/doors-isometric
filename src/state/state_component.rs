@@ -7,8 +7,9 @@ pub enum GameState {
     #[default]
     InGame,
     Paused,
-    TransitioningSetup,
+    TransitioningOutSetup,
     TransitioningOut,
+    TransitioningInSetup,
     TransitioningIn,
 }
 
