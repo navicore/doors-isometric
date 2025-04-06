@@ -6,14 +6,6 @@ use leafwing_input_manager::{prelude::InputMap, Actionlike, InputManagerBundle};
 // Define movement constants
 const PLAYER_WALK_SPEED: f32 = 4.0; // Horizontal movement speed
 
-pub const PLAYER_SHAPE_X: f32 = 1.2;
-pub const PLAYER_SHAPE_Y: f32 = 1.8;
-pub const PLAYER_SHAPE_Z: f32 = 1.2;
-
-const PLAYER_MASS: f32 = 4.0;
-pub const PLAYER_JUMP_FORCE: f32 = 250.0; // Jump force applied when pressing space
-pub const PLAYER_GRAVITY_SCALE: f32 = 2.5; // Gravity multiplier for falling speed
-
 #[derive(Actionlike, PartialEq, Eq, Hash, Clone, Copy, Debug, Reflect)]
 pub enum Action {
     MoveForward,
@@ -56,8 +48,7 @@ pub struct PlayerBundle {
 }
 
 impl PlayerBundle {
-    pub fn new(// texture: Handle<Image>,
-    ) -> Self {
+    pub fn new(config: &PlayerConfig) -> Self {
         let input_map = InputMap::new([
             (Action::MoveForward, KeyCode::ArrowUp),
             (Action::MoveBackward, KeyCode::ArrowDown),
@@ -69,20 +60,46 @@ impl PlayerBundle {
         Self {
             transform: Transform::from_translation(Vec3::new(0.0, 8.0, 0.0)), // Start above the floor
             rigid_body: RigidBody::Dynamic,
-            collider: Collider::cuboid(PLAYER_SHAPE_X, PLAYER_SHAPE_Y, PLAYER_SHAPE_Z), // Collider matching the player size
+            collider: Collider::cuboid(config.x, config.y, config.z), // Collider matching the player size
             external_force: ExternalForce::default(),
             player: Player::default(),
             input_manager: InputManagerBundle::with_map(input_map),
-            gravity: GravityScale(PLAYER_GRAVITY_SCALE),
-            mass: Mass(PLAYER_MASS),
+            gravity: GravityScale(config.gravity_scale),
+            mass: Mass(config.mass),
             friction: Friction {
-                // TODO: tune
-                dynamic_coefficient: 0.3,
-                static_coefficient: 0.5,
+                dynamic_coefficient: config.dynamic_coefficient,
+                static_coefficient: config.static_coefficient,
                 combine_rule: CoefficientCombine::Average,
             },
             movable: Movable,
             grounded: Grounded(false),
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct PlayerConfig {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub jump_force: f32,
+    pub gravity_scale: f32,
+    pub mass: f32,
+    pub dynamic_coefficient: f32,
+    pub static_coefficient: f32,
+}
+
+impl Default for PlayerConfig {
+    fn default() -> Self {
+        Self {
+            x: 1.2,
+            y: 1.2,
+            z: 1.2,
+            jump_force: 250.0,
+            gravity_scale: 2.5,
+            mass: 4.0,
+            dynamic_coefficient: 0.3,
+            static_coefficient: 0.5,
         }
     }
 }

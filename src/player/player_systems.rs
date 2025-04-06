@@ -1,6 +1,6 @@
 use super::player_component::{
-    Action, Grounded, GroundedState, Player, PlayerBundle, PlayerDirection, PlayerState,
-    PLAYER_JUMP_FORCE, PLAYER_SHAPE_X,
+    Action, Grounded, GroundedState, Player, PlayerBundle, PlayerConfig, PlayerDirection,
+    PlayerState,
 };
 use crate::{
     floorplan::{Door, Room},
@@ -12,21 +12,23 @@ use bevy::{color::palettes::tailwind::BLUE_600, prelude::*};
 use leafwing_input_manager::prelude::ActionState;
 
 pub fn spawn_player(
+    player_config: Res<PlayerConfig>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let player_shape = meshes.add(Sphere::new(PLAYER_SHAPE_X / 2.0));
+    let player_shape = meshes.add(Sphere::new(player_config.x / 2.0));
     let player_material = materials.add(Color::from(BLUE_600));
 
     commands.spawn((
         Mesh3d(player_shape),
         MeshMaterial3d(player_material),
-        PlayerBundle::new(),
+        PlayerBundle::new(&PlayerConfig::default()),
     ));
 }
 
 pub fn player_movement(
+    player_config: Res<PlayerConfig>,
     mut query: Query<
         (
             &mut ExternalForce,
@@ -78,7 +80,7 @@ pub fn player_movement(
 
         pressed = if action_state.pressed(&Action::Jump) {
             direction.x += 0.0;
-            direction.y += PLAYER_JUMP_FORCE;
+            direction.y += player_config.jump_force;
             direction.z += 0.0;
             player.direction = PlayerDirection::Up; // ?
             player.state = PlayerState::Jump;
