@@ -159,15 +159,20 @@ fn find_door_collision(
 
 #[allow(clippy::type_complexity)]
 pub fn detect_enter_door(
+    mut command: Commands,
     mut next_state: ResMut<NextState<GameState>>,
     mut current_floorplan: ResMut<CurrentFloorPlan>,
     mut collision_events: EventReader<Collision>,
+
+    mut player_query: Query<Entity, With<Player>>,
     door_query: Query<(Entity, &Transform, &Parent, &Door)>,
     room_query: Query<&Room>,
 ) {
     for collision in collision_events.read() {
         if let Some(room_entity) = find_door_collision(collision, &door_query) {
             handle_door_entry(
+                &mut command,
+                &player_query.single_mut(),
                 room_entity,
                 &mut current_floorplan,
                 &room_query,
@@ -178,6 +183,8 @@ pub fn detect_enter_door(
 }
 
 fn handle_door_entry(
+    commands: &mut Commands,
+    player: &Entity,
     room_entity: Entity,
     current_floorplan: &mut CurrentFloorPlan,
     room_query: &Query<&Room>,
@@ -192,6 +199,8 @@ fn handle_door_entry(
         };
 
         debug!("Entering room: {:?}", room);
-        next_state.set(GameState::TransitioningOut);
+
+        commands.entity(*player).despawn();
+        next_state.set(GameState::TransitioningSetup);
     }
 }
