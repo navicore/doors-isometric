@@ -54,7 +54,7 @@ fn process_floorplan_event(
 ) -> bool {
     if current_floorplan.floorplan.is_none() {
         current_floorplan.floorplan = Some(floorplan.clone());
-        current_floorplan.you_are_here = determine_you_are_here(None, floorplan);
+        current_floorplan.you_are_here = determine_you_are_here(floorplan);
         current_floorplan.previous_room = None;
         return true;
     }
@@ -70,16 +70,10 @@ fn process_floorplan_event(
     false
 }
 
-fn determine_you_are_here(
-    current_you_are_here: Option<&Room>,
-    floorplan: &FloorPlan,
-) -> Option<Room> {
-    if current_you_are_here.is_none() {
-        if let Ok(start_room) = floorplan.get_start_room() {
-            return Some(start_room.clone());
-        }
-    }
-    current_you_are_here.cloned()
+fn determine_you_are_here(floorplan: &FloorPlan) -> Option<Room> {
+    floorplan
+        .get_start_room()
+        .map_or(None, |start_room| Some(start_room.clone()))
 }
 
 pub fn spawn_world(
@@ -91,14 +85,6 @@ pub fn spawn_world(
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     if let Some(floorplan) = &current_floorplan.floorplan {
-        // Animate existing platforms to rise out of view
-        // for (entity, transform) in platform_query.iter() {
-        //     commands.entity(entity).insert(PlatformTransition {
-        //         target_y: transform.translation.y + 100.0, // Move up by 1000 units
-        //         speed: 0.5,                                // Adjust speed as needed
-        //     });
-        // }
-
         let previous_room = current_floorplan.previous_room.clone();
 
         let mut connected_rooms_and_doors = HashMap::new();
@@ -127,13 +113,9 @@ pub fn spawn_world(
             if let Some(room) = floorplan.graph.node_weight(node_index) {
                 if connected_rooms_and_doors.contains_key(&node_index) {
                     if let Some(door) = connected_rooms_and_doors.remove(&node_index) {
-                        // if this is the room we just came from then it is an exit
-                        let is_exit = if let Some(previous_room) = &previous_room {
-                            previous_room.id == room.id
-                        } else {
-                            false
-                        };
-
+                        let is_exit = previous_room
+                            .as_ref()
+                            .is_some_and(|previous_room| previous_room.id == room.id);
                         // is a connected room - we want to spawn a door
                         spawn_connected_room(
                             &world_config,

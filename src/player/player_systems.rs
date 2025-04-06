@@ -172,7 +172,7 @@ pub fn detect_enter_door(
         if let Some(room_entity) = find_door_collision(collision, &door_query) {
             handle_door_entry(
                 &mut command,
-                &player_query.single_mut(),
+                player_query.single_mut(),
                 room_entity,
                 &mut current_floorplan,
                 &room_query,
@@ -184,7 +184,7 @@ pub fn detect_enter_door(
 
 fn handle_door_entry(
     commands: &mut Commands,
-    player: &Entity,
+    player: Entity,
     room_entity: Entity,
     current_floorplan: &mut CurrentFloorPlan,
     room_query: &Query<&Room>,
@@ -200,7 +200,7 @@ fn handle_door_entry(
 
         debug!("Entering room: {:?}", room);
 
-        commands.entity(*player).despawn();
+        commands.entity(player).despawn();
         next_state.set(GameState::TransitioningSetup);
     }
 }
