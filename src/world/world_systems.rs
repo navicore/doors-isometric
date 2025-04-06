@@ -83,6 +83,8 @@ pub fn transition_in_setup(
     current_floorplan: ResMut<CurrentFloorPlan>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
+    let initial_y_offset = -0.0;
+
     if let Some(floorplan) = &current_floorplan.floorplan {
         let previous_room = current_floorplan.previous_room.clone();
 
@@ -105,6 +107,7 @@ pub fn transition_in_setup(
             floorplan.graph.node_indices().count(),
             world_config.n_rows,
             world_config.spacing,
+            initial_y_offset,
         );
 
         // Visualize Rooms
@@ -125,6 +128,7 @@ pub fn transition_in_setup(
                             room,
                             door.clone(),
                             is_exit,
+                            initial_y_offset,
                         );
                     }
                 } else {
@@ -135,6 +139,7 @@ pub fn transition_in_setup(
                         &mut materials,
                         node_index,
                         room,
+                        initial_y_offset,
                     );
                 }
             }
@@ -155,6 +160,7 @@ fn spawn_connected_room(
     room: &Room,
     door: Door,
     is_exit: bool, // Whether this room is the previous room
+    initial_y_offset: f32,
 ) {
     let room_height = if is_exit {
         world_config.exit_room_y
@@ -168,7 +174,7 @@ fn spawn_connected_room(
         world_config.room_z,
     ));
     let mat = materials.add(Color::from(calculate_room_color(&room.name)));
-    let position = calculate_room_position(world_config, node_index, 1.8);
+    let position = calculate_room_position(world_config, node_index, 1.8 + initial_y_offset);
     let collider = Collider::cuboid(world_config.room_x, room_height, world_config.room_z);
 
     let door = spawn_connected_room_door(world_config, commands, meshes, materials, door);
@@ -219,6 +225,7 @@ fn spawn_unconnected_room(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     node_index: NodeIndex,
     room: &Room,
+    initial_y_offset: f32,
 ) {
     debug!("Spawning unconnected room");
 
@@ -228,7 +235,7 @@ fn spawn_unconnected_room(
         world_config.room_z,
     ));
     let mat = materials.add(Color::from(GRAY_600));
-    let position = calculate_room_position(world_config, node_index, 0.0);
+    let position = calculate_room_position(world_config, node_index, 0.0 + initial_y_offset);
     let collider = Collider::cuboid(
         world_config.room_x,
         world_config.placeholder_y,
@@ -246,7 +253,7 @@ fn spawn_unconnected_room(
     ));
 }
 
-#[allow(clippy::cast_precision_loss)]
+#[allow(clippy::too_many_arguments)]
 fn spawn_floor(
     world_config: &WorldConfig,
     commands: &mut Commands,
@@ -255,6 +262,7 @@ fn spawn_floor(
     num_rooms: usize,
     columns: usize,
     room_spacing: f32,
+    y_offset: f32,
 ) {
     let rows = (num_rooms as f32 / columns as f32).ceil();
     let floor_width = columns as f32 * room_spacing;
@@ -263,7 +271,7 @@ fn spawn_floor(
 
     let floor_position = Vec3::new(
         (columns as f32 - 1.0) * room_spacing / 2.0,
-        -floor_thickness / 2.0,
+        -floor_thickness / 2.0 + y_offset,
         (rows - 1.0) * room_spacing / 2.0,
     );
 
@@ -275,10 +283,12 @@ fn spawn_floor(
         Collider::cuboid(floor_width, floor_thickness, floor_depth),
         Floor::default(),
         PlatformMarker::default(),
-        //PlatformTransition::default(),
     ));
 }
 
+// This function calculates the position of a room based on its index
+// TODO: use the yoffset to render platform out of view and then transition in.
+// model after the ytarget method of transition out.
 #[allow(clippy::cast_precision_loss)]
 fn calculate_room_position(world_config: &WorldConfig, index: NodeIndex, yoffset: f32) -> Vec3 {
     let x = (index.index() % world_config.n_rows) as f32 * world_config.spacing;
@@ -287,10 +297,32 @@ fn calculate_room_position(world_config: &WorldConfig, index: NodeIndex, yoffset
 }
 
 pub fn platform_transitioning_in(
-    mut _commands: Commands,
+    mut query: Query<(Entity, &mut Transform, &PlatformTransition)>,
+    mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    next_state.set(GameState::InGame);
+    // under construction
+    // under construction
+    // under construction
+    let mut transitions_remaining = false;
+
+    for (entity, mut transform, transition) in &mut query {
+        // Move the entity upward
+        transform.translation.y += transition.speed;
+
+        // Check if the platform is off-screen
+        if transform.translation.y > transition.target_y {
+            // Transition is complete for this entity
+            commands.entity(entity).despawn();
+        } else {
+            // At least one platform object is still transitioning
+            transitions_remaining = true;
+        }
+    }
+
+    if !transitions_remaining {
+        next_state.set(GameState::InGame);
+    }
 }
 
 /// system to mark the current platform entities for transition
