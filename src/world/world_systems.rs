@@ -83,7 +83,7 @@ pub fn transition_in_setup(
     current_floorplan: ResMut<CurrentFloorPlan>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    let initial_y_offset = -0.0;
+    let initial_y_offset = 1.5;
 
     if let Some(floorplan) = &current_floorplan.floorplan {
         let previous_room = current_floorplan.previous_room.clone();
@@ -98,14 +98,15 @@ pub fn transition_in_setup(
                 }
             }
         }
+        let num_rooms = floorplan.graph.node_indices().count();
 
-        spawn_floor(
+        let floor_entity: Entity = spawn_floor(
             &world_config,
             &mut commands,
             &mut meshes,
             &mut materials,
             floorplan.graph.node_indices().count(),
-            world_config.n_rows,
+            world_config.n_columns,
             world_config.spacing,
             initial_y_offset,
         );
@@ -119,28 +120,32 @@ pub fn transition_in_setup(
                             .as_ref()
                             .is_some_and(|previous_room| previous_room.id == room.id);
                         // is a connected room - we want to spawn a door
-                        spawn_connected_room(
+                        let room_entity: Entity = spawn_connected_room(
                             &world_config,
                             &mut commands,
                             &mut meshes,
                             &mut materials,
                             node_index,
+                            num_rooms,
                             room,
                             door.clone(),
                             is_exit,
-                            initial_y_offset,
+                            initial_y_offset + world_config.room_y / 2.0,
                         );
+                        commands.entity(floor_entity).add_child(room_entity);
                     }
                 } else {
-                    spawn_unconnected_room(
+                    let room_entity: Entity = spawn_unconnected_room(
                         &world_config,
                         &mut commands,
                         &mut meshes,
                         &mut materials,
                         node_index,
+                        num_rooms,
                         room,
                         initial_y_offset,
                     );
+                    commands.entity(floor_entity).add_child(room_entity);
                 }
             }
         }
@@ -157,11 +162,12 @@ fn spawn_connected_room(
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     node_index: NodeIndex,
+    num_rooms: usize,
     room: &Room,
     door: Door,
     is_exit: bool, // Whether this room is the previous room
     initial_y_offset: f32,
-) {
+) -> Entity {
     let room_height = if is_exit {
         world_config.exit_room_y
     } else {
@@ -174,7 +180,7 @@ fn spawn_connected_room(
         world_config.room_z,
     ));
     let mat = materials.add(Color::from(calculate_room_color(&room.name)));
-    let position = calculate_room_position(world_config, node_index, 1.8 + initial_y_offset);
+    let position = calculate_room_position(world_config, node_index, initial_y_offset, num_rooms);
     let collider = Collider::cuboid(world_config.room_x, room_height, world_config.room_z);
 
     let door = spawn_connected_room_door(world_config, commands, meshes, materials, door);
@@ -189,7 +195,8 @@ fn spawn_connected_room(
             collider,
             PlatformMarker::default(),
         ))
-        .add_child(door);
+        .add_child(door)
+        .id()
 }
 
 fn spawn_connected_room_door(
@@ -218,15 +225,17 @@ fn spawn_connected_room_door(
         .id()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_unconnected_room(
     world_config: &WorldConfig,
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     node_index: NodeIndex,
+    num_rooms: usize,
     room: &Room,
     initial_y_offset: f32,
-) {
+) -> Entity {
     debug!("Spawning unconnected room");
 
     let shape = meshes.add(Cuboid::new(
@@ -235,22 +244,25 @@ fn spawn_unconnected_room(
         world_config.room_z,
     ));
     let mat = materials.add(Color::from(GRAY_600));
-    let position = calculate_room_position(world_config, node_index, 0.0 + initial_y_offset);
+    let position =
+        calculate_room_position(world_config, node_index, 0.0 + initial_y_offset, num_rooms);
     let collider = Collider::cuboid(
         world_config.room_x,
         world_config.placeholder_y,
         world_config.room_z,
     );
 
-    commands.spawn((
-        Mesh3d(shape),
-        MeshMaterial3d(mat),
-        Transform::from_translation(position),
-        room.clone(),
-        RigidBody::Static,
-        collider,
-        PlatformMarker::default(),
-    ));
+    commands
+        .spawn((
+            Mesh3d(shape),
+            MeshMaterial3d(mat),
+            Transform::from_translation(position),
+            room.clone(),
+            RigidBody::Static,
+            collider,
+            PlatformMarker::default(),
+        ))
+        .id()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -263,7 +275,7 @@ fn spawn_floor(
     columns: usize,
     room_spacing: f32,
     y_offset: f32,
-) {
+) -> Entity {
     let rows = (num_rooms as f32 / columns as f32).ceil();
     let floor_width = columns as f32 * room_spacing;
     let floor_depth = rows * room_spacing;
@@ -275,25 +287,38 @@ fn spawn_floor(
         (rows - 1.0) * room_spacing / 2.0,
     );
 
-    commands.spawn((
-        Mesh3d(meshes.add(Cuboid::new(floor_width, floor_thickness, floor_depth))),
-        MeshMaterial3d(materials.add(Color::from(GRAY_500))),
-        Transform::from_translation(floor_position),
-        RigidBody::Static,
-        Collider::cuboid(floor_width, floor_thickness, floor_depth),
-        Floor::default(),
-        PlatformMarker::default(),
-    ));
+    commands
+        .spawn((
+            Mesh3d(meshes.add(Cuboid::new(floor_width, floor_thickness, floor_depth))),
+            MeshMaterial3d(materials.add(Color::from(GRAY_500))),
+            Transform::from_translation(floor_position),
+            RigidBody::Static,
+            Collider::cuboid(floor_width, floor_thickness, floor_depth),
+            Floor::default(),
+            PlatformMarker::default(),
+        ))
+        .id()
 }
 
-// This function calculates the position of a room based on its index
-// TODO: use the yoffset to render platform out of view and then transition in.
-// model after the ytarget method of transition out.
 #[allow(clippy::cast_precision_loss)]
-fn calculate_room_position(world_config: &WorldConfig, index: NodeIndex, yoffset: f32) -> Vec3 {
-    let x = (index.index() % world_config.n_rows) as f32 * world_config.spacing;
-    let z = (index.index() / world_config.n_rows) as f32 * world_config.spacing; // adjust 'spacing' as needed
-    Vec3::new(x, 0.0 + yoffset, z)
+fn calculate_room_position(
+    world_config: &WorldConfig,
+    index: NodeIndex,
+    yoffset: f32,
+    num_rooms: usize,
+) -> Vec3 {
+    let n_rows = (num_rooms as f32 / world_config.n_columns as f32).ceil() as usize;
+    let column = index.index() % world_config.n_columns;
+    let row = index.index() / world_config.n_columns;
+
+    let x = column as f32 * world_config.spacing
+        - (world_config.n_columns as f32 - 1.0) * world_config.spacing / 2.0;
+
+    let z =
+        (row as f32 + 0.5) * world_config.spacing - (n_rows as f32 * world_config.spacing / 2.0);
+
+    // Align with the floor's y_offset
+    Vec3::new(x, yoffset, z)
 }
 
 pub fn platform_transitioning_in(
