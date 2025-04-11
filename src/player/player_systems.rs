@@ -143,7 +143,6 @@ fn find_door_collision(
 ) -> Option<Entity> {
     let contacts = &collision.0;
     let involved_entities = [contacts.entity1, contacts.entity2];
-
     if contacts.is_sensor {
         return None;
     }
@@ -157,6 +156,7 @@ fn find_door_collision(
     None
 }
 
+#[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 pub fn detect_enter_door(
     mut command: Commands,

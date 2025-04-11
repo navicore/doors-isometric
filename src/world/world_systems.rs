@@ -209,7 +209,7 @@ fn spawn_connected_room_door(
     debug!("Spawning connected room door");
 
     let room_size = world_config.room_y;
-    let door_size = Vec3::new(2.0, 3.0, 0.1); // Width, height, depth of the door
+    let door_size = Vec3::new(2.0, 3.8, 0.1); // Width, height, depth of the door
     let door_position = Vec3::new(0.0, 0.0, -(room_size / 2.0 + door_size.z / 2.0)); // Centered on the front face
 
     commands
@@ -218,7 +218,7 @@ fn spawn_connected_room_door(
             MeshMaterial3d(materials.add(Color::from(RED_600))),
             Transform::from_translation(door_position),
             RigidBody::Static,
-            Collider::cuboid(door_size.x / 2.0, door_size.y / 2.0, door_size.z / 2.0),
+            Collider::cuboid(door_size.x / 2.0, door_size.y, door_size.z / 2.0),
             door,
             PlatformMarker::default(),
         ))
@@ -352,7 +352,7 @@ pub fn platform_transitioning_in(
 
 /// system to mark the current platform entities for transition
 pub fn transition_out_setup(
-    platform_query: Query<(Entity, &Transform), With<PlatformMarker>>,
+    platform_query: Query<(Entity, &Transform), With<Floor>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
