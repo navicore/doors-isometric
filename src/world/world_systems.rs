@@ -265,6 +265,7 @@ fn spawn_unconnected_room(
         .id()
 }
 
+#[allow(clippy::cast_precision_loss)]
 #[allow(clippy::too_many_arguments)]
 fn spawn_floor(
     world_config: &WorldConfig,
@@ -305,6 +306,8 @@ fn spawn_floor(
         .id()
 }
 
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_precision_loss)]
 fn calculate_room_position(
     world_config: &WorldConfig,
@@ -316,11 +319,15 @@ fn calculate_room_position(
     let column = index.index() % world_config.n_columns;
     let row = index.index() / world_config.n_columns;
 
-    let x = column as f32 * world_config.spacing
-        - (world_config.n_columns as f32 - 1.0) * world_config.spacing / 2.0;
+    let x = (column as f32).mul_add(
+        world_config.spacing,
+        -((world_config.n_columns as f32 - 1.0) * world_config.spacing / 2.0),
+    );
 
-    let z =
-        (row as f32 + 0.5) * world_config.spacing - (n_rows as f32 * world_config.spacing / 2.0);
+    let z = (row as f32 + 0.5).mul_add(
+        world_config.spacing,
+        -(n_rows as f32 * world_config.spacing / 2.0),
+    );
 
     // Align with the floor's y_offset
     Vec3::new(x, yoffset, z)
