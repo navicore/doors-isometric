@@ -25,7 +25,7 @@ fn load_world_config_from_lua() -> WorldConfig {
                     placeholder_y: config_table.get("placeholder_y").unwrap_or(0.1),
                     exit_room_y: config_table.get("exit_room_y").unwrap_or(4000.0),
                     floor_thickness: config_table.get("floor_thickness").unwrap_or(3.0),
-                    n_rows: config_table.get("n_rows").unwrap_or(5),
+                    n_columns: config_table.get("n_columns").unwrap_or(5),
                     spacing: config_table.get("spacing").unwrap_or(8.0),
                 })
                 .unwrap_or_default()

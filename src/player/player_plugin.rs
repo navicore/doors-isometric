@@ -40,7 +40,7 @@ impl Plugin for PlayerPlugin {
             .insert_resource(load_player_config_from_lua())
             .add_plugins(InputManagerPlugin::<Action>::default())
             //.add_systems(Startup, spawn_player)
-            .add_systems(OnEnter(GameState::TransitioningIn), spawn_player)
+            .add_systems(OnEnter(GameState::TransitioningComplete), spawn_player)
             .add_systems(
                 Update,
                 (check_grounded, player_movement, detect_enter_door).chain(),

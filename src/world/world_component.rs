@@ -37,7 +37,7 @@ pub struct WorldConfig {
     pub placeholder_y: f32,
     pub exit_room_y: f32,
     pub floor_thickness: f32,
-    pub n_rows: usize,
+    pub n_columns: usize,
     pub spacing: f32,
 }
 
@@ -50,7 +50,7 @@ impl Default for WorldConfig {
             placeholder_y: 0.1,
             exit_room_y: 4000.0,
             floor_thickness: 3.0,
-            n_rows: 5,
+            n_columns: 5,
             spacing: 8.0,
         }
     }
