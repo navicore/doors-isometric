@@ -15,6 +15,11 @@ pub enum Action {
     Jump,
 }
 
+#[derive(Resource, Default)]
+pub struct PlayerStartPosition {
+    pub position: Option<Vec3>,
+}
+
 #[derive(Component)]
 pub struct Player {
     pub walk_speed: f32,
@@ -48,7 +53,7 @@ pub struct PlayerBundle {
 }
 
 impl PlayerBundle {
-    pub fn new(config: &PlayerConfig) -> Self {
+    pub fn new(config: &PlayerConfig, position: Vec3) -> Self {
         let input_map = InputMap::new([
             (Action::MoveForward, KeyCode::ArrowUp),
             (Action::MoveBackward, KeyCode::ArrowDown),
@@ -58,7 +63,7 @@ impl PlayerBundle {
         ]);
 
         Self {
-            transform: Transform::from_translation(Vec3::new(0.0, 8.0, 0.0)), // Start above the floor
+            transform: Transform::from_translation(position), // Start above the floor
             rigid_body: RigidBody::Dynamic,
             collider: Collider::cuboid(config.x, config.y, config.z), // Collider matching the player size
             external_force: ExternalForce::default(),
