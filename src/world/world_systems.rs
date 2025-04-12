@@ -75,7 +75,7 @@ fn determine_you_are_here(floorplan: &FloorPlan) -> Option<Room> {
         .map_or(None, |start_room| Some(start_room.clone()))
 }
 
-pub fn transition_in_setup(
+pub fn platform_transition_in_setup(
     world_config: Res<WorldConfig>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -333,7 +333,7 @@ fn calculate_room_position(
     Vec3::new(x, yoffset, z)
 }
 
-pub fn platform_transitioning_in(
+pub fn platform_transition_in(
     mut query: Query<(&mut Transform, &PlatformTransition)>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
@@ -356,7 +356,7 @@ pub fn platform_transitioning_in(
 }
 
 /// system to mark the current platform entities for transition
-pub fn transition_out_setup(
+pub fn platform_transition_out_setup(
     platform_query: Query<(Entity, &Transform), With<Floor>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
@@ -373,7 +373,7 @@ pub fn transition_out_setup(
 }
 
 /// system to animate the transitioning out of current platform entities
-pub fn platform_transitioning_out(
+pub fn platform_transition_out(
     mut query: Query<(Entity, &mut Transform, &PlatformTransition)>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
@@ -387,7 +387,7 @@ pub fn platform_transitioning_out(
         // Check if the platform is off-screen
         if transform.translation.y > transition.target_y {
             // Transition is complete for this entity
-            commands.entity(entity).despawn();
+            commands.entity(entity).despawn_recursive();
         } else {
             // At least one platform object is still transitioning
             transitions_remaining = true;

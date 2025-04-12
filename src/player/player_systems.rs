@@ -1,6 +1,6 @@
 use super::player_component::{
     Action, Grounded, GroundedState, Player, PlayerBundle, PlayerConfig, PlayerDirection,
-    PlayerState,
+    PlayerStartPosition, PlayerState,
 };
 use crate::{
     floorplan::{Door, Room},
@@ -17,14 +17,21 @@ pub fn spawn_player(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut next_state: ResMut<NextState<GameState>>,
+    start_position: Res<PlayerStartPosition>,
 ) {
     let player_shape = meshes.add(Sphere::new(player_config.x / 2.0));
     let player_material = materials.add(Color::from(BLUE_600));
+    let spawn_position = start_position.position.unwrap_or(Vec3::ZERO)
+        + Vec3 {
+            x: 0.0,
+            y: 8.0,
+            z: -2.0,
+        };
 
     commands.spawn((
         Mesh3d(player_shape),
         MeshMaterial3d(player_material),
-        PlayerBundle::new(&PlayerConfig::default()),
+        PlayerBundle::new(&PlayerConfig::default(), spawn_position),
     ));
     next_state.set(GameState::InGame);
 }
@@ -165,44 +172,30 @@ pub fn detect_enter_door(
     mut next_state: ResMut<NextState<GameState>>,
     mut current_floorplan: ResMut<CurrentFloorPlan>,
     mut collision_events: EventReader<Collision>,
-
-    mut player_query: Query<Entity, With<Player>>,
+    mut player_query: Query<(Entity, &Transform), With<Player>>,
     door_query: Query<(Entity, &Transform, &Parent, &Door)>,
     room_query: Query<&Room>,
+    mut start_position: ResMut<PlayerStartPosition>,
 ) {
-    for collision in collision_events.read() {
-        if let Some(room_entity) = find_door_collision(collision, &door_query) {
-            handle_door_entry(
-                &mut command,
-                player_query.single_mut(),
-                room_entity,
-                &mut current_floorplan,
-                &room_query,
-                &mut next_state,
-            );
+    if let Ok((player, transform)) = player_query.get_single_mut() {
+        //let (player, transform) = player_query.single_mut();
+        for collision in collision_events.read() {
+            if let Some(room_entity) = find_door_collision(collision, &door_query) {
+                if let Ok(room) = room_query.get(room_entity) {
+                    *current_floorplan = CurrentFloorPlan {
+                        floorplan: current_floorplan.floorplan.clone(),
+                        you_are_here: Some(room.clone()),
+                        previous_room: current_floorplan.you_are_here.clone(),
+                        ..Default::default()
+                    };
+
+                    debug!("Entering room: {:?}", room);
+                    start_position.position = Some(transform.translation);
+
+                    command.entity(player).despawn();
+                    next_state.set(GameState::TransitioningOutSetup);
+                }
+            }
         }
-    }
-}
-
-fn handle_door_entry(
-    commands: &mut Commands,
-    player: Entity,
-    room_entity: Entity,
-    current_floorplan: &mut CurrentFloorPlan,
-    room_query: &Query<&Room>,
-    next_state: &mut ResMut<NextState<GameState>>,
-) {
-    if let Ok(room) = room_query.get(room_entity) {
-        *current_floorplan = CurrentFloorPlan {
-            floorplan: current_floorplan.floorplan.clone(),
-            you_are_here: Some(room.clone()),
-            previous_room: current_floorplan.you_are_here.clone(),
-            ..Default::default()
-        };
-
-        debug!("Entering room: {:?}", room);
-
-        commands.entity(player).despawn();
-        next_state.set(GameState::TransitioningOutSetup);
     }
 }

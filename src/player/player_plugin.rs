@@ -1,7 +1,7 @@
 use crate::state::GameState;
 
 use super::{
-    player_component::{Action, GroundedState, PlayerConfig},
+    player_component::{Action, GroundedState, PlayerConfig, PlayerStartPosition},
     player_systems::{check_grounded, detect_enter_door, player_movement, spawn_player},
 };
 use bevy::prelude::*;
@@ -37,6 +37,7 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GroundedState::default())
+            .insert_resource(PlayerStartPosition::default())
             .insert_resource(load_player_config_from_lua())
             .add_plugins(InputManagerPlugin::<Action>::default())
             //.add_systems(Startup, spawn_player)
