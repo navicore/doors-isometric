@@ -347,7 +347,7 @@ pub fn update_wall_state(
     mut query: Query<(&mut WallState, &mut Visibility), With<Wall>>,
     time: Res<Time>,
 ) {
-    for (mut state, mut visibility) in query.iter_mut() {
+    for (mut state, mut visibility) in &mut query {
         if let WallState::Visible(ref mut timer) = *state {
             timer.tick(time.delta());
             if timer.finished() {
