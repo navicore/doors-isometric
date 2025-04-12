@@ -12,6 +12,22 @@ pub struct WorldPlugin;
 pub struct PlatformMarker {}
 
 #[derive(Component, Default)]
+pub struct Wall {}
+
+#[derive(Component, Default)]
+pub enum WallState {
+    #[default]
+    Hidden,
+    Visible(Timer),
+}
+
+#[derive(Component, Default)]
+pub struct WallTransition {
+    pub target_y: f32,
+    pub speed: f32,
+}
+
+#[derive(Component, Default)]
 pub struct Floor {}
 
 #[derive(Default, Resource, Debug)]
