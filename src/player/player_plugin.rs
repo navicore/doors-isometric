@@ -2,7 +2,9 @@ use crate::state::GameState;
 
 use super::{
     player_component::{Action, GroundedState, PlayerConfig, PlayerStartPosition},
-    player_systems::{check_grounded, detect_enter_door, player_movement, spawn_player},
+    player_systems::{
+        check_grounded, detect_enter_door, detect_wall_collision, player_movement, spawn_player,
+    },
 };
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::InputManagerPlugin;
@@ -44,7 +46,13 @@ impl Plugin for PlayerPlugin {
             .add_systems(OnEnter(GameState::TransitioningComplete), spawn_player)
             .add_systems(
                 Update,
-                (check_grounded, player_movement, detect_enter_door).chain(),
+                (
+                    check_grounded,
+                    player_movement,
+                    detect_enter_door,
+                    detect_wall_collision,
+                )
+                    .chain(),
             );
     }
 }

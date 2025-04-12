@@ -5,7 +5,7 @@ use super::player_component::{
 use crate::{
     floorplan::{Door, Room},
     state::GameState,
-    world::world_component::{CurrentFloorPlan, PlatformMarker},
+    world::world_component::{CurrentFloorPlan, PlatformMarker, Wall, WallState},
 };
 use avian3d::prelude::*;
 use bevy::{color::palettes::tailwind::BLUE_600, prelude::*};
@@ -178,7 +178,6 @@ pub fn detect_enter_door(
     mut start_position: ResMut<PlayerStartPosition>,
 ) {
     if let Ok((player, transform)) = player_query.get_single_mut() {
-        //let (player, transform) = player_query.single_mut();
         for collision in collision_events.read() {
             if let Some(room_entity) = find_door_collision(collision, &door_query) {
                 if let Ok(room) = room_query.get(room_entity) {
@@ -195,6 +194,26 @@ pub fn detect_enter_door(
                     command.entity(player).despawn();
                     next_state.set(GameState::TransitioningOutSetup);
                 }
+            }
+        }
+    }
+}
+
+pub fn detect_wall_collision(
+    mut wall_query: Query<(&mut WallState, &mut Visibility), With<Wall>>,
+    mut collision_events: EventReader<Collision>,
+) {
+    for collision in collision_events.read() {
+        let contacts = &collision.0;
+        if contacts.is_sensor {
+            continue;
+        }
+        let involved_entities = [contacts.entity1, contacts.entity2];
+
+        for entity in &involved_entities {
+            if let Ok((mut state, mut visibility)) = wall_query.get_mut(*entity) {
+                *state = WallState::Visible(Timer::from_seconds(1.0, TimerMode::Once));
+                *visibility = Visibility::Visible;
             }
         }
     }

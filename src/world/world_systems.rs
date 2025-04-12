@@ -1,5 +1,5 @@
 use super::world_component::{
-    CurrentFloorPlan, Floor, PlatformMarker, PlatformTransition, Wall, WorldConfig,
+    CurrentFloorPlan, Floor, PlatformMarker, PlatformTransition, Wall, WallState, WorldConfig,
 };
 use crate::{
     floorplan::{Door, FloorPlan, FloorPlanEvent, Room},
@@ -306,11 +306,11 @@ fn spawn_floor(
         .id();
 
     let wall_thickness = 1.0;
-    let wall_height = 50.0;
+    let wall_height = 5.0;
 
     // Spawn walls as children
     //let wall_material = materials.add(Color::rgba(0.2, 0.2, 0.2, 0.1)); // Transparent material
-    let wall_material = materials.add(Color::srgba(0.0, 0.0, 0.0, 0.0)); // Transparent material
+    let wall_material = materials.add(Color::srgba(1.0, 1.0, 1.0, 0.05)); // Transparent material
     let wall_positions = [
         Vec3::new(0.0, wall_height / 2.0, -floor_depth / 2.0), // Back wall
         Vec3::new(0.0, wall_height / 2.0, floor_depth / 2.0),  // Front wall
@@ -333,12 +333,29 @@ fn spawn_floor(
                 RigidBody::Static,
                 Collider::cuboid(size.x, size.y, size.z),
                 Wall::default(),
+                WallState::Hidden,
+                Visibility::Hidden,
             ))
             .id();
         commands.entity(floor_entity).add_child(wall);
     }
 
     floor_entity
+}
+
+pub fn update_wall_state(
+    mut query: Query<(&mut WallState, &mut Visibility), With<Wall>>,
+    time: Res<Time>,
+) {
+    for (mut state, mut visibility) in query.iter_mut() {
+        if let WallState::Visible(ref mut timer) = *state {
+            timer.tick(time.delta());
+            if timer.finished() {
+                *state = WallState::Hidden;
+                *visibility = Visibility::Hidden;
+            }
+        }
+    }
 }
 
 #[allow(clippy::cast_possible_truncation)]
