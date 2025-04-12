@@ -25,7 +25,7 @@ pub fn spawn_player(
         + Vec3 {
             x: 0.0,
             y: 8.0,
-            z: -2.0,
+            z: -0.5,
         };
 
     commands.spawn((
