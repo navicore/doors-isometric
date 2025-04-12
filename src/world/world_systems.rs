@@ -387,7 +387,7 @@ pub fn platform_transition_out(
         // Check if the platform is off-screen
         if transform.translation.y > transition.target_y {
             // Transition is complete for this entity
-            commands.entity(entity).despawn();
+            commands.entity(entity).despawn_recursive();
         } else {
             // At least one platform object is still transitioning
             transitions_remaining = true;
