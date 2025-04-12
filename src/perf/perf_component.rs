@@ -488,6 +488,7 @@ impl PerfUiEntry for GameStateText {
             GameState::TransitioningOut => Some("Transitioning Out".to_string()),
             GameState::TransitioningInSetup => Some("Transitioning In Setup".to_string()),
             GameState::TransitioningIn => Some("Transitioning In".to_string()),
+            GameState::TransitioningComplete => Some("Transitioning Complete".to_string()),
         }
     }
 

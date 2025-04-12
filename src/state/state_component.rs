@@ -11,6 +11,7 @@ pub enum GameState {
     TransitioningOut,
     TransitioningInSetup,
     TransitioningIn,
+    TransitioningComplete,
 }
 
 #[derive(Debug, Component)]

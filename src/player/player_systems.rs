@@ -16,6 +16,7 @@ pub fn spawn_player(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     let player_shape = meshes.add(Sphere::new(player_config.x / 2.0));
     let player_material = materials.add(Color::from(BLUE_600));
@@ -25,6 +26,7 @@ pub fn spawn_player(
         MeshMaterial3d(player_material),
         PlayerBundle::new(&PlayerConfig::default()),
     ));
+    next_state.set(GameState::InGame);
 }
 
 pub fn player_movement(

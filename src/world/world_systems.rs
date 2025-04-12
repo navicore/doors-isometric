@@ -280,10 +280,11 @@ fn spawn_floor(
     let floor_width = columns as f32 * room_spacing;
     let floor_depth = rows * room_spacing;
     let floor_thickness = world_config.floor_thickness;
+    let floor_offset = 100.0;
 
     let floor_position = Vec3::new(
         (columns as f32 - 1.0) * room_spacing / 2.0,
-        -floor_thickness / 2.0 + y_offset,
+        -floor_thickness / 2.0 + y_offset - floor_offset,
         (rows - 1.0) * room_spacing / 2.0,
     );
 
@@ -296,6 +297,10 @@ fn spawn_floor(
             Collider::cuboid(floor_width, floor_thickness, floor_depth),
             Floor::default(),
             PlatformMarker::default(),
+            PlatformTransition {
+                target_y: 0.0,
+                speed: 0.5, // Adjust speed as needed
+            },
         ))
         .id()
 }
@@ -322,31 +327,24 @@ fn calculate_room_position(
 }
 
 pub fn platform_transitioning_in(
-    mut query: Query<(Entity, &mut Transform, &PlatformTransition)>,
-    mut commands: Commands,
+    mut query: Query<(&mut Transform, &PlatformTransition)>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    // under construction
-    // under construction
-    // under construction
     let mut transitions_remaining = false;
 
-    for (entity, mut transform, transition) in &mut query {
+    for (mut transform, transition) in &mut query {
         // Move the entity upward
         transform.translation.y += transition.speed;
 
         // Check if the platform is off-screen
-        if transform.translation.y > transition.target_y {
-            // Transition is complete for this entity
-            commands.entity(entity).despawn();
-        } else {
+        if transform.translation.y < transition.target_y {
             // At least one platform object is still transitioning
             transitions_remaining = true;
         }
     }
 
     if !transitions_remaining {
-        next_state.set(GameState::InGame);
+        next_state.set(GameState::TransitioningComplete);
     }
 }
 
