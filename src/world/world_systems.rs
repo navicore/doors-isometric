@@ -281,7 +281,7 @@ fn spawn_floor(
     let floor_width = columns as f32 * room_spacing;
     let floor_depth = rows * room_spacing;
     let floor_thickness = world_config.floor_thickness;
-    let floor_offset = 100.0;
+    let floor_offset = 50.0;
 
     let floor_position = Vec3::new(
         (columns as f32 - 1.0) * room_spacing / 2.0,
@@ -364,8 +364,8 @@ pub fn transition_out_setup(
     // Animate existing platforms to rise out of view
     for (entity, transform) in platform_query.iter() {
         commands.entity(entity).insert(PlatformTransition {
-            target_y: transform.translation.y + 100.0, // Move up by 1000 units
-            speed: 0.5,                                // Adjust speed as needed
+            target_y: transform.translation.y + 50.0, // Move up by units
+            speed: 0.5,                               // Adjust speed as needed
         });
     }
 
