@@ -12,6 +12,9 @@ pub struct WorldPlugin;
 pub struct PlatformMarker {}
 
 #[derive(Component, Default)]
+pub struct Wall {}
+
+#[derive(Component, Default)]
 pub struct Floor {}
 
 #[derive(Default, Resource, Debug)]

@@ -1,5 +1,5 @@
 use super::world_component::{
-    CurrentFloorPlan, Floor, PlatformMarker, PlatformTransition, WorldConfig,
+    CurrentFloorPlan, Floor, PlatformMarker, PlatformTransition, Wall, WorldConfig,
 };
 use crate::{
     floorplan::{Door, FloorPlan, FloorPlanEvent, Room},
@@ -289,7 +289,7 @@ fn spawn_floor(
         (rows - 1.0) * room_spacing / 2.0,
     );
 
-    commands
+    let floor_entity = commands
         .spawn((
             Mesh3d(meshes.add(Cuboid::new(floor_width, floor_thickness, floor_depth))),
             MeshMaterial3d(materials.add(Color::from(GRAY_500))),
@@ -303,7 +303,42 @@ fn spawn_floor(
                 speed: 0.5, // Adjust speed as needed
             },
         ))
-        .id()
+        .id();
+
+    let wall_thickness = 1.0;
+    let wall_height = 50.0;
+
+    // Spawn walls as children
+    //let wall_material = materials.add(Color::rgba(0.2, 0.2, 0.2, 0.1)); // Transparent material
+    let wall_material = materials.add(Color::rgba(0.0, 0.0, 0.0, 0.0)); // Transparent material
+    let wall_positions = [
+        Vec3::new(0.0, wall_height / 2.0, -floor_depth / 2.0), // Back wall
+        Vec3::new(0.0, wall_height / 2.0, floor_depth / 2.0),  // Front wall
+        Vec3::new(-floor_width / 2.0, wall_height / 2.0, 0.0), // Left wall
+        Vec3::new(floor_width / 2.0, wall_height / 2.0, 0.0),  // Right wall
+    ];
+    let wall_sizes = [
+        Vec3::new(floor_width, wall_height, wall_thickness), // Back wall
+        Vec3::new(floor_width, wall_height, wall_thickness), // Front wall
+        Vec3::new(wall_thickness, wall_height, floor_depth), // Left wall
+        Vec3::new(wall_thickness, wall_height, floor_depth), // Right wall
+    ];
+
+    for (position, size) in wall_positions.iter().zip(wall_sizes.iter()) {
+        let wall = commands
+            .spawn((
+                Mesh3d(meshes.add(Cuboid::new(size.x, size.y, size.z))),
+                MeshMaterial3d(wall_material.clone()),
+                Transform::from_translation(*position),
+                RigidBody::Static,
+                Collider::cuboid(size.x, size.y, size.z),
+                Wall::default(),
+            ))
+            .id();
+        commands.entity(floor_entity).add_child(wall);
+    }
+
+    floor_entity
 }
 
 #[allow(clippy::cast_possible_truncation)]
