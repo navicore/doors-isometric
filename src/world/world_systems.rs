@@ -310,7 +310,7 @@ fn spawn_floor(
 
     // Spawn walls as children
     //let wall_material = materials.add(Color::rgba(0.2, 0.2, 0.2, 0.1)); // Transparent material
-    let wall_material = materials.add(Color::rgba(0.0, 0.0, 0.0, 0.0)); // Transparent material
+    let wall_material = materials.add(Color::srgba(0.0, 0.0, 0.0, 0.0)); // Transparent material
     let wall_positions = [
         Vec3::new(0.0, wall_height / 2.0, -floor_depth / 2.0), // Back wall
         Vec3::new(0.0, wall_height / 2.0, floor_depth / 2.0),  // Front wall

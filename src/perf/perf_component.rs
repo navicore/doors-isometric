@@ -169,7 +169,7 @@ impl Default for TimeSinceLastFloorplanRefresh {
             #[allow(clippy::unwrap_used)]
             color_gradient: ColorGradient::new_preset_gyr(10.0, 45.0, 60.0).unwrap(),
             digits: 3,
-            precision: 2,
+            precision: 1,
             // get the correct value from the library
             sort_key: iyes_perf_ui::utils::next_sort_key(),
         }
@@ -241,7 +241,7 @@ impl Default for TimeSinceLastFloorplanModified {
             #[allow(clippy::unwrap_used)]
             color_gradient: ColorGradient::new_preset_gyr(60.0, 120.0, 800.0).unwrap(),
             digits: 3,
-            precision: 2,
+            precision: 1,
             sort_key: iyes_perf_ui::utils::next_sort_key(),
         }
     }
@@ -310,7 +310,7 @@ impl Default for TimeInRoom {
             #[allow(clippy::unwrap_used)]
             color_gradient: ColorGradient::new_preset_gyr(60.0, 120.0, 800.0).unwrap(),
             digits: 3,
-            precision: 2,
+            precision: 1,
             sort_key: iyes_perf_ui::utils::next_sort_key(),
         }
     }
@@ -375,7 +375,7 @@ impl PerfUiEntry for RoomName {
     type SystemParam = SRes<CurrentFloorPlan>;
 
     fn label(&self) -> &'static str {
-        "Room Name"
+        "Room"
     }
 
     fn sort_key(&self) -> i32 {
