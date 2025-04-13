@@ -1,6 +1,6 @@
 use super::perf_component::{
-    GameStateText, PlayerIsGrounded, RoomName, TimeInRoom, TimeSinceLastFloorplanModified,
-    TimeSinceLastFloorplanRefresh,
+    GameStateText, PlayerIsGrounded, RoomName, TimeInRoom, TimeSinceLastFloorplanRefresh,
+    TimeSinceNextFloorplanCreated,
 };
 use super::perf_system::{toggle_builtins, toggle_customs};
 use super::{WorldEdgeCount, WorldNodeCount};
@@ -28,7 +28,7 @@ impl Plugin for PerfPlugin {
             .add_perf_ui_simple_entry::<WorldNodeCount>()
             .add_perf_ui_simple_entry::<WorldEdgeCount>()
             .add_perf_ui_simple_entry::<TimeSinceLastFloorplanRefresh>()
-            .add_perf_ui_simple_entry::<TimeSinceLastFloorplanModified>()
+            .add_perf_ui_simple_entry::<TimeSinceNextFloorplanCreated>()
             .add_perf_ui_simple_entry::<TimeInRoom>()
             .add_perf_ui_simple_entry::<RoomName>()
             .add_perf_ui_simple_entry::<PlayerIsGrounded>()

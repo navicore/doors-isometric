@@ -31,10 +31,16 @@ pub struct WallTransition {
 pub struct Floor {}
 
 #[derive(Default, Resource, Debug)]
+pub struct NextFloorPlan {
+    pub floorplan: Option<FloorPlan>,
+    pub created: Option<Duration>, // update every time we modify due to changes in the external world
+}
+
+#[derive(Default, Resource, Debug)]
 pub struct CurrentFloorPlan {
     pub floorplan: Option<FloorPlan>,
     pub refreshed: Duration, // update every time we sync to the external state
-    pub modified: Duration,  // update every time we modify due to changes in the external world
+    pub time_in_room: Duration,
     pub you_are_here: Option<Room>,
     pub previous_room: Option<Room>,
 }

@@ -1,5 +1,5 @@
 use super::{
-    world_component::{CurrentFloorPlan, WorldConfig, WorldPlugin},
+    world_component::{CurrentFloorPlan, NextFloorPlan, WorldConfig, WorldPlugin},
     world_systems::{
         handle_floor_plan_event, platform_transition_in, platform_transition_in_setup,
         platform_transition_out, platform_transition_out_setup, update_wall_state,
@@ -36,6 +36,7 @@ fn load_world_config_from_lua() -> WorldConfig {
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(CurrentFloorPlan::default())
+            .insert_resource(NextFloorPlan::default())
             .insert_resource(load_world_config_from_lua())
             .add_systems(
                 Update,
