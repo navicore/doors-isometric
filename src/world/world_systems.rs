@@ -1,5 +1,6 @@
 use super::world_component::{
-    CurrentFloorPlan, Floor, PlatformMarker, PlatformTransition, Wall, WallState, WorldConfig,
+    CurrentFloorPlan, Floor, NextFloorPlan, PlatformMarker, PlatformTransition, Wall, WallState,
+    WorldConfig,
 };
 use crate::{
     floorplan::{Door, FloorPlan, FloorPlanEvent, Room},
@@ -30,13 +31,19 @@ fn calculate_room_color(name: &str) -> Srgba {
 pub fn handle_floor_plan_event(
     mut events: EventReader<FloorPlanEvent>,
     mut current_floorplan: ResMut<CurrentFloorPlan>,
+    mut next_floorplan: ResMut<NextFloorPlan>,
     time: Res<Time>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     let mut should_transition = false;
 
     for event in events.read() {
-        if process_floorplan_event(&mut current_floorplan, &event.floorplan, &time) {
+        if process_floorplan_event(
+            &mut current_floorplan,
+            &mut next_floorplan,
+            &event.floorplan,
+            &time,
+        ) {
             should_transition = true;
         }
     }
@@ -48,6 +55,7 @@ pub fn handle_floor_plan_event(
 
 fn process_floorplan_event(
     current_floorplan: &mut CurrentFloorPlan,
+    next_floorplan: &mut NextFloorPlan,
     floorplan: &FloorPlan,
     time: &Res<Time>,
 ) -> bool {
@@ -57,12 +65,12 @@ fn process_floorplan_event(
         current_floorplan.previous_room = None;
         return true;
     }
-    // if current floor plan has changed then we need to update the current floor plan
+    // if current floor plan has changed then we need to update the on-deck floor plan
     if let Some(plan) = &current_floorplan.floorplan {
         if plan != floorplan {
-            current_floorplan.floorplan = Some(floorplan.clone());
-            current_floorplan.modified = time.elapsed();
-            return true;
+            next_floorplan.floorplan = Some(floorplan.clone());
+            next_floorplan.created = Some(time.elapsed());
+            return false;
         }
     }
 
@@ -75,14 +83,27 @@ fn determine_you_are_here(floorplan: &FloorPlan) -> Option<Room> {
         .map_or(None, |start_room| Some(start_room.clone()))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn platform_transition_in_setup(
     world_config: Res<WorldConfig>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    current_floorplan: ResMut<CurrentFloorPlan>,
+    mut current_floorplan: ResMut<CurrentFloorPlan>,
+    mut next_floorplan: ResMut<NextFloorPlan>,
     mut next_state: ResMut<NextState<GameState>>,
+    time: Res<Time>,
 ) {
+    // if there is a floor plan on deck from a k8s scan use that floorplan
+    if let Some(floorplan) = &next_floorplan.floorplan {
+        warn!("Transitioning to new floorplan");
+        current_floorplan.floorplan = Some(floorplan.clone());
+        current_floorplan.refreshed = time.elapsed();
+        next_floorplan.floorplan = None;
+        next_floorplan.created = None;
+    }
+    current_floorplan.time_in_room = time.elapsed();
+
     let initial_y_offset = 1.5;
 
     if let Some(floorplan) = &current_floorplan.floorplan {

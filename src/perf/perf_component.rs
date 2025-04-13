@@ -1,6 +1,6 @@
 use crate::player::player_component::GroundedState;
 use crate::state::GameState;
-use crate::world::world_component::CurrentFloorPlan;
+use crate::world::world_component::{CurrentFloorPlan, NextFloorPlan};
 use bevy::ecs::system::lifetimeless::SRes;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
@@ -222,7 +222,7 @@ impl PerfUiEntry for TimeSinceLastFloorplanRefresh {
 
 #[derive(Component)]
 #[require(PerfUiRoot)]
-pub struct TimeSinceLastFloorplanModified {
+pub struct TimeSinceNextFloorplanCreated {
     pub label: String,
     pub display_units: bool,
     pub threshold_highlight: Option<f32>,
@@ -232,7 +232,7 @@ pub struct TimeSinceLastFloorplanModified {
     pub sort_key: i32,
 }
 
-impl Default for TimeSinceLastFloorplanModified {
+impl Default for TimeSinceNextFloorplanCreated {
     fn default() -> Self {
         Self {
             label: String::new(),
@@ -247,13 +247,13 @@ impl Default for TimeSinceLastFloorplanModified {
     }
 }
 
-impl PerfUiEntry for TimeSinceLastFloorplanModified {
+impl PerfUiEntry for TimeSinceNextFloorplanCreated {
     type Value = f64;
-    type SystemParam = (SRes<Time>, SRes<CurrentFloorPlan>);
+    type SystemParam = (SRes<Time>, SRes<NextFloorPlan>);
 
     fn label(&self) -> &str {
         if self.label.is_empty() {
-            "Floorplan Modified"
+            "Next Floorplan Created"
         } else {
             &self.label
         }
@@ -267,8 +267,12 @@ impl PerfUiEntry for TimeSinceLastFloorplanModified {
         &self,
         (time, plan): &mut <Self::SystemParam as SystemParam>::Item<'_, '_>,
     ) -> Option<Self::Value> {
-        let d = time.elapsed() - plan.modified;
-        Some(d.as_secs_f64())
+        if let Some(created) = plan.created {
+            let d = time.elapsed() - created;
+            Some(d.as_secs_f64())
+        } else {
+            None
+        }
     }
 
     fn format_value(&self, value: &Self::Value) -> String {
@@ -332,7 +336,7 @@ impl PerfUiEntry for TimeInRoom {
         &self,
         (time, plan): &mut <Self::SystemParam as SystemParam>::Item<'_, '_>,
     ) -> Option<Self::Value> {
-        let d = time.elapsed() - plan.modified;
+        let d = time.elapsed() - plan.time_in_room;
         Some(d.as_secs_f64())
     }
 

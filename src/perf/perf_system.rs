@@ -3,13 +3,13 @@ use super::perf_component::PlayerIsGrounded;
 use super::perf_component::RoomName;
 use super::perf_component::SystemMonitor;
 use super::perf_component::TimeInRoom;
+use super::perf_component::TimeSinceNextFloorplanCreated;
 use bevy::prelude::*;
 use iyes_perf_ui::prelude::PerfUiAllEntries;
 use iyes_perf_ui::prelude::PerfUiPosition;
 use iyes_perf_ui::prelude::PerfUiRoot;
 
 use super::perf_component::GameWorldMonitor;
-use super::perf_component::TimeSinceLastFloorplanModified;
 use super::perf_component::TimeSinceLastFloorplanRefresh;
 use super::{WorldEdgeCount, WorldNodeCount};
 
@@ -45,7 +45,7 @@ pub fn toggle_customs(
                 WorldNodeCount::default(),
                 WorldEdgeCount::default(),
                 TimeSinceLastFloorplanRefresh::default(),
-                TimeSinceLastFloorplanModified::default(),
+                TimeSinceNextFloorplanCreated::default(),
                 TimeInRoom::default(),
                 RoomName::default(),
                 PlayerIsGrounded::default(),

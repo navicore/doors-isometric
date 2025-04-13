@@ -142,6 +142,9 @@ pub fn check_grounded(
         }
         grounded.0 = t_grounded;
     }
+    if !t_grounded {
+        debug!("Player is not grounded");
+    }
     grounded_state.0 = t_grounded;
 }
 
