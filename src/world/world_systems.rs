@@ -96,7 +96,7 @@ pub fn platform_transition_in_setup(
 ) {
     // if there is a floor plan on deck from a k8s scan use that floorplan
     if let Some(floorplan) = &next_floorplan.floorplan {
-        warn!("Transitioning to new floorplan");
+        debug!("Transitioning to new floorplan");
         current_floorplan.floorplan = Some(floorplan.clone());
         current_floorplan.refreshed = time.elapsed();
         next_floorplan.floorplan = None;
