@@ -21,4 +21,5 @@ pub enum CameraAction {
     RotateYDec,
     RotateZInc,
     RotateZDec,
+    ResetXYZ,
 }

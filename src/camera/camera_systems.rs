@@ -60,15 +60,20 @@ pub fn move_camera(
         if action_state.pressed(&CameraAction::RotateZDec) {
             transform.rotation *= Quat::from_rotation_z(-SPEED);
         }
+        if action_state.pressed(&CameraAction::ResetXYZ) {
+            *transform = default_camera_transform();
+        }
     }
 }
 
-pub fn setup_camera(mut commands: Commands) {
+fn default_camera_transform() -> Transform {
     // Standard isometric angles: rotated 45° horizontally, ~35.26° vertically
     let translation = Vec3::new(-20.0, 20.0, -20.0);
     let target = Vec3::ZERO;
-    let camera_transform = Transform::from_translation(translation).looking_at(target, Vec3::Y);
+    Transform::from_translation(translation).looking_at(target, Vec3::Y)
+}
 
+pub fn setup_camera(mut commands: Commands) {
     let input_map = InputMap::new([
         (
             CameraAction::TranslationXInc,
@@ -118,12 +123,16 @@ pub fn setup_camera(mut commands: Commands) {
             CameraAction::RotateZDec,
             ButtonlikeChord::new([KeyCode::KeyZ, KeyCode::ArrowLeft]),
         ),
+        (
+            CameraAction::ResetXYZ,
+            ButtonlikeChord::new([KeyCode::KeyX, KeyCode::KeyY, KeyCode::KeyZ]),
+        ),
     ]);
 
     commands.spawn((
         Camera3d::default(),
         MainCamera,
-        camera_transform,
+        default_camera_transform(),
         InputManagerBundle::with_map(input_map),
     ));
 
