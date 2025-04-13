@@ -267,11 +267,6 @@ fn spawn_unconnected_room(
     let mat = materials.add(Color::from(GRAY_600));
     let position =
         calculate_room_position(world_config, node_index, 0.0 + initial_y_offset, num_rooms);
-    let collider = Collider::cuboid(
-        world_config.room_x,
-        world_config.placeholder_y,
-        world_config.room_z,
-    );
 
     commands
         .spawn((
@@ -279,8 +274,6 @@ fn spawn_unconnected_room(
             MeshMaterial3d(mat),
             Transform::from_translation(position),
             room.clone(),
-            RigidBody::Static,
-            collider,
             PlatformMarker::default(),
         ))
         .id()
