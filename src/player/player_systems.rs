@@ -194,19 +194,17 @@ pub fn detect_enter_door(
     mut next_state: ResMut<NextState<GameState>>,
     mut current_floorplan: ResMut<CurrentFloorPlan>,
     mut collision_events: EventReader<Collision>,
-    mut player_query: Query<(Entity, &Transform), With<Player>>,
+    mut player_query: Query<(Entity, &Transform, &ActionState<Action>), With<Player>>,
     door_query: Query<(Entity, &Transform, &Parent, &Door)>,
     room_query: Query<&Room>,
     mut start_position: ResMut<PlayerStartPosition>,
     mut events: EventWriter<DisplayRoomInfoEvent>,
 ) {
-    if let Ok((player, transform)) = player_query.get_single_mut() {
+    if let Ok((player, transform, action_state)) = player_query.get_single_mut() {
         for collision in collision_events.read() {
             if let Some(room_entity) = find_door_collision(collision, &door_query) {
                 if let Ok(room) = room_query.get(room_entity) {
-                    // TODO: check if the user is pressing shift
-                    //
-                    if false {
+                    if action_state.just_pressed(&Action::Open) {
                         debug!("Entering room: {:?}", room);
                         *current_floorplan = CurrentFloorPlan {
                             floorplan: current_floorplan.floorplan.clone(),
@@ -221,7 +219,10 @@ pub fn detect_enter_door(
                         next_state.set(GameState::TransitioningOutSetup);
                     } else {
                         debug!("Requesting room info: {:?}", room);
-                        events.send(DisplayRoomInfoEvent { room: room.clone() });
+                        events.send(DisplayRoomInfoEvent {
+                            room: room.clone(),
+                            you_are_here: current_floorplan.you_are_here.clone(),
+                        });
                     }
                 }
             }

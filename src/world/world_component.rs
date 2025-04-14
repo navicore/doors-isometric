@@ -9,6 +9,7 @@ use crate::floorplan::{FloorPlan, Room};
 #[derive(Event)]
 pub struct DisplayRoomInfoEvent {
     pub room: Room,
+    pub you_are_here: Option<Room>,
 }
 
 #[derive(Resource)]

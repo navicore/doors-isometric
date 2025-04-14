@@ -471,7 +471,11 @@ pub fn display_room_info_text(
     mut events: EventReader<DisplayRoomInfoEvent>,
 ) {
     for event in events.read() {
-        let text = event.room.name.clone();
+        let text = event.you_are_here.as_ref().map_or_else(
+            || event.room.name.to_string(),
+            |room| format!("{}\ndoor to\n{}", room.name, event.room.name),
+        );
+
         commands.spawn((
             // Accepts a `String` or any type that converts into a `String`, such as `&str`
             Text::new(text),
