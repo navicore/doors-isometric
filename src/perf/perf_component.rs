@@ -267,12 +267,10 @@ impl PerfUiEntry for TimeSinceNextFloorplanCreated {
         &self,
         (time, plan): &mut <Self::SystemParam as SystemParam>::Item<'_, '_>,
     ) -> Option<Self::Value> {
-        if let Some(created) = plan.created {
+        plan.created.map(|created| {
             let d = time.elapsed() - created;
-            Some(d.as_secs_f64())
-        } else {
-            None
-        }
+            d.as_secs_f64()
+        })
     }
 
     fn format_value(&self, value: &Self::Value) -> String {
@@ -493,6 +491,7 @@ impl PerfUiEntry for GameStateText {
             GameState::TransitioningInSetup => Some("Transitioning In Setup".to_string()),
             GameState::TransitioningIn => Some("Transitioning In".to_string()),
             GameState::TransitioningComplete => Some("Transitioning Complete".to_string()),
+            GameState::GameOver { reason } => Some(format!("Game Over: {reason}")),
         }
     }
 
