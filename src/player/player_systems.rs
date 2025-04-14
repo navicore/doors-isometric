@@ -5,7 +5,9 @@ use super::player_component::{
 use crate::{
     floorplan::{Door, Room},
     state::{state_component::GameOverReason, GameState},
-    world::world_component::{CurrentFloorPlan, Floor, PlatformMarker, Wall, WallState},
+    world::world_component::{
+        CurrentFloorPlan, DisplayRoomInfoEvent, Floor, PlatformMarker, Wall, WallState,
+    },
 };
 use avian3d::prelude::*;
 use bevy::{color::palettes::tailwind::BLUE_600, prelude::*};
@@ -196,23 +198,31 @@ pub fn detect_enter_door(
     door_query: Query<(Entity, &Transform, &Parent, &Door)>,
     room_query: Query<&Room>,
     mut start_position: ResMut<PlayerStartPosition>,
+    mut events: EventWriter<DisplayRoomInfoEvent>,
 ) {
     if let Ok((player, transform)) = player_query.get_single_mut() {
         for collision in collision_events.read() {
             if let Some(room_entity) = find_door_collision(collision, &door_query) {
                 if let Ok(room) = room_query.get(room_entity) {
-                    *current_floorplan = CurrentFloorPlan {
-                        floorplan: current_floorplan.floorplan.clone(),
-                        you_are_here: Some(room.clone()),
-                        previous_room: current_floorplan.you_are_here.clone(),
-                        ..Default::default()
-                    };
+                    // TODO: check if the user is pressing shift
+                    //
+                    if false {
+                        debug!("Entering room: {:?}", room);
+                        *current_floorplan = CurrentFloorPlan {
+                            floorplan: current_floorplan.floorplan.clone(),
+                            you_are_here: Some(room.clone()),
+                            previous_room: current_floorplan.you_are_here.clone(),
+                            ..Default::default()
+                        };
 
-                    debug!("Entering room: {:?}", room);
-                    start_position.position = Some(transform.translation);
+                        start_position.position = Some(transform.translation);
 
-                    command.entity(player).despawn();
-                    next_state.set(GameState::TransitioningOutSetup);
+                        command.entity(player).despawn();
+                        next_state.set(GameState::TransitioningOutSetup);
+                    } else {
+                        debug!("Requesting room info: {:?}", room);
+                        events.send(DisplayRoomInfoEvent { room: room.clone() });
+                    }
                 }
             }
         }

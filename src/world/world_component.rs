@@ -6,7 +6,18 @@ use bevy::prelude::*;
 
 use crate::floorplan::{FloorPlan, Room};
 
+#[derive(Event)]
+pub struct DisplayRoomInfoEvent {
+    pub room: Room,
+}
+
+#[derive(Resource)]
+pub struct RoomInfoDisplayTimer(pub Timer);
+
 pub struct WorldPlugin;
+
+#[derive(Debug, Component)]
+pub struct RoomInfoText;
 
 #[derive(Component, Default)]
 pub struct PlatformMarker {}

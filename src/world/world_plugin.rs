@@ -1,8 +1,11 @@
 use super::{
-    world_component::{CurrentFloorPlan, NextFloorPlan, WorldConfig, WorldPlugin},
+    world_component::{
+        CurrentFloorPlan, DisplayRoomInfoEvent, NextFloorPlan, WorldConfig, WorldPlugin,
+    },
     world_systems::{
-        handle_floor_plan_event, platform_transition_in, platform_transition_in_setup,
-        platform_transition_out, platform_transition_out_setup, update_wall_state,
+        display_room_info_text, handle_floor_plan_event, platform_transition_in,
+        platform_transition_in_setup, platform_transition_out, platform_transition_out_setup,
+        remove_room_info_text, setup_quit_displaying_room_info_text_timer, update_wall_state,
     },
 };
 use crate::state::GameState;
@@ -36,11 +39,18 @@ fn load_world_config_from_lua() -> WorldConfig {
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(CurrentFloorPlan::default())
+            .add_event::<DisplayRoomInfoEvent>()
             .insert_resource(NextFloorPlan::default())
             .insert_resource(load_world_config_from_lua())
             .add_systems(
                 Update,
-                handle_floor_plan_event.run_if(in_state(GameState::InGame)),
+                (
+                    handle_floor_plan_event,
+                    display_room_info_text,
+                    remove_room_info_text,
+                    setup_quit_displaying_room_info_text_timer,
+                )
+                    .run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 Update,
