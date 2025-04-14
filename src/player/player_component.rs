@@ -8,6 +8,7 @@ const PLAYER_WALK_SPEED: f32 = 4.0; // Horizontal movement speed
 
 #[derive(Actionlike, PartialEq, Eq, Hash, Clone, Copy, Debug, Reflect)]
 pub enum Action {
+    Open,
     MoveForward,
     MoveBackward,
     MoveLeft,
@@ -60,6 +61,7 @@ impl PlayerBundle {
             (Action::MoveLeft, KeyCode::ArrowLeft),
             (Action::MoveRight, KeyCode::ArrowRight),
             (Action::Jump, KeyCode::Space),
+            (Action::Open, KeyCode::ShiftLeft),
         ]);
 
         Self {

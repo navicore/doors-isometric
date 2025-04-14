@@ -1,6 +1,6 @@
 use super::world_component::{
-    CurrentFloorPlan, Floor, NextFloorPlan, PlatformMarker, PlatformTransition, Wall, WallState,
-    WorldConfig,
+    CurrentFloorPlan, DisplayRoomInfoEvent, Floor, NextFloorPlan, PlatformMarker,
+    PlatformTransition, RoomInfoDisplayTimer, RoomInfoText, Wall, WallState, WorldConfig,
 };
 use crate::{
     floorplan::{Door, FloorPlan, FloorPlanEvent, Room},
@@ -462,5 +462,68 @@ pub fn platform_transition_out(
 
     if !transitions_remaining {
         next_state.set(GameState::TransitioningInSetup);
+    }
+}
+
+pub fn display_room_info_text(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut events: EventReader<DisplayRoomInfoEvent>,
+) {
+    for event in events.read() {
+        let text = event.you_are_here.as_ref().map_or_else(
+            || event.room.name.to_string(),
+            |room| format!("{}\ndoor to\n{}", room.name, event.room.name),
+        );
+
+        commands.spawn((
+            // Accepts a `String` or any type that converts into a `String`, such as `&str`
+            Text::new(text),
+            TextFont {
+                // This font is loaded and will be used instead of the default font.
+                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                font_size: 67.0,
+                ..default()
+            },
+            // Set the justification of the Text
+            TextLayout::new_with_justify(JustifyText::Center),
+            // Set the style of the Node itself.
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(5.0),
+                right: Val::Px(5.0),
+                ..default()
+            },
+            RoomInfoText,
+        ));
+    }
+}
+
+pub fn remove_room_info_text(
+    mut commands: Commands,
+    time: Res<Time>,
+    timer: Option<ResMut<RoomInfoDisplayTimer>>,
+    query: Query<Entity, With<RoomInfoText>>,
+) {
+    if let Some(mut timer) = timer {
+        // Tick the timer
+        if timer.0.tick(time.delta()).finished() {
+            for entity in query.iter() {
+                commands.entity(entity).despawn();
+            }
+            commands.remove_resource::<RoomInfoDisplayTimer>(); // Remove the timer after use
+        }
+    }
+}
+
+pub fn setup_quit_displaying_room_info_text_timer(
+    mut commands: Commands,
+    mut events: EventReader<DisplayRoomInfoEvent>,
+) {
+    for _ in events.read() {
+        commands.insert_resource(RoomInfoDisplayTimer(Timer::from_seconds(
+            2.5,
+            TimerMode::Once,
+        )));
     }
 }
