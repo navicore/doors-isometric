@@ -3,7 +3,7 @@ use crate::state::GameState;
 use super::{
     player_component::{Action, GroundedState, PlayerConfig, PlayerStartPosition},
     player_systems::{
-        check_grounded, detect_enter_door, detect_wall_collision, player_movement, spawn_player,
+        detect_enter_door, detect_grounded, detect_wall_collision, player_movement, spawn_player,
     },
 };
 use bevy::prelude::*;
@@ -47,7 +47,7 @@ impl Plugin for PlayerPlugin {
             .add_systems(
                 Update,
                 (
-                    check_grounded,
+                    detect_grounded,
                     player_movement,
                     detect_enter_door,
                     detect_wall_collision,

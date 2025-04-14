@@ -4,8 +4,8 @@ use super::player_component::{
 };
 use crate::{
     floorplan::{Door, Room},
-    state::GameState,
-    world::world_component::{CurrentFloorPlan, PlatformMarker, Wall, WallState},
+    state::{state_component::GameOverReason, GameState},
+    world::world_component::{CurrentFloorPlan, Floor, PlatformMarker, Wall, WallState},
 };
 use avian3d::prelude::*;
 use bevy::{color::palettes::tailwind::BLUE_600, prelude::*};
@@ -111,7 +111,9 @@ pub fn player_movement(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn check_grounded(
+pub fn detect_grounded(
+    mut next_state: ResMut<NextState<GameState>>,
+    floor_query: Query<&Transform, With<Floor>>,
     mut collision_events: EventReader<Collision>,
     mut grounded_state: ResMut<GroundedState>,
     mut player_query: Query<(Entity, &mut Grounded, &Transform), With<Player>>,
@@ -141,10 +143,25 @@ pub fn check_grounded(
             }
         }
         grounded.0 = t_grounded;
+
+        // Check if the player is too far below the floor
+        if let Ok(floor_transform) = floor_query.get_single() {
+            let player_y = player_transform.translation.y;
+            let floor_y = floor_transform.translation.y;
+
+            if player_y < floor_y - 200.0 {
+                next_state.set(GameState::GameOver {
+                    reason: GameOverReason::PlayerFell,
+                });
+                debug!("Player fell off the platform. Transitioning to GameOver.");
+            }
+        }
     }
+
     if !t_grounded {
         debug!("Player is not grounded");
     }
+
     grounded_state.0 = t_grounded;
 }
 
