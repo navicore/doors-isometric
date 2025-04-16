@@ -119,52 +119,64 @@ pub fn detect_grounded(
     mut collision_events: EventReader<Collision>,
     mut grounded_state: ResMut<GroundedState>,
     mut player_query: Query<(Entity, &mut Grounded, &Transform), With<Player>>,
-    platform_query: Query<(Entity, &Transform), With<PlatformMarker>>,
+    _platform_query: Query<(Entity, &Transform), With<PlatformMarker>>,
+    time: Res<Time>,
 ) {
+    // Coyote time duration (in seconds)
+    const COYOTE_TIME: f32 = 0.1;
+    // Buffer distance above the floor to still consider grounded
+    const GROUND_BUFFER: f32 = 5.0;
+
     let mut t_grounded = false;
 
-    if let Ok((player_entity, grounded, player_transform)) = &mut player_query.get_single_mut() {
+    if let Ok((player_entity, mut grounded, player_transform)) = player_query.get_single_mut() {
+        // 1. Check collision events
         for collision in collision_events.read() {
             let contacts = &collision.0;
-
             if contacts.is_sensor {
                 continue;
             }
-
             let involved_entities = [contacts.entity1, contacts.entity2];
-            if !involved_entities.iter().any(|e| e == player_entity) {
-                continue;
+            if involved_entities.iter().any(|e| *e == player_entity) {
+                t_grounded = true;
+                break;
             }
+        }
 
-            for entity in &involved_entities {
-                if let Ok((_, room_transform)) = platform_query.get(*entity) {
-                    if player_transform.translation.y > room_transform.translation.y {
-                        t_grounded = true;
-                    }
+        // 2. Check if player is close enough to the floor
+        if !t_grounded {
+            if let Ok(floor_transform) = floor_query.get_single() {
+                let player_y = player_transform.translation.y;
+                let floor_y = floor_transform.translation.y;
+                if (player_y - floor_y).abs() <= GROUND_BUFFER {
+                    t_grounded = true;
+                }
+                // Check if the player is too far below the floor
+                if player_y < floor_y - 200.0 {
+                    next_state.set(GameState::GameOver {
+                        reason: GameOverReason::PlayerFell,
+                    });
+                    debug!("Player fell off the platform. Transitioning to GameOver.");
                 }
             }
         }
-        grounded.0 = t_grounded;
 
-        // Check if the player is too far below the floor
-        if let Ok(floor_transform) = floor_query.get_single() {
-            let player_y = player_transform.translation.y;
-            let floor_y = floor_transform.translation.y;
-
-            if player_y < floor_y - 200.0 {
-                next_state.set(GameState::GameOver {
-                    reason: GameOverReason::PlayerFell,
-                });
-                debug!("Player fell off the platform. Transitioning to GameOver.");
+        // 3. Coyote time logic
+        if t_grounded {
+            grounded_state.grounded = true;
+            grounded.0 = true;
+            grounded_state.timer = 0.0;
+        } else {
+            grounded_state.timer += time.delta_secs();
+            if grounded_state.timer < COYOTE_TIME {
+                grounded.0 = true;
+                grounded_state.grounded = true;
+            } else {
+                grounded.0 = false;
+                grounded_state.grounded = false;
             }
         }
     }
-
-    if !t_grounded {
-        debug!("Player is not grounded");
-    }
-
-    grounded_state.0 = t_grounded;
 }
 
 #[allow(clippy::type_complexity)]

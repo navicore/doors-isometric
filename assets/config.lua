@@ -13,5 +13,10 @@ return {
 		x = 1.2,
 		y = 1.2,
 		z = 1.2,
+		jump_force = 3.0,
+		gravity_scale = 2.5,
+		mass = 4.0,
+		dynamic_coefficient = 0.3,
+		static_coefficient = 0.5,
 	},
 }

@@ -437,7 +437,7 @@ impl PerfUiEntry for PlayerIsGrounded {
         &self,
         grounded_state: &mut <Self::SystemParam as SystemParam>::Item<'_, '_>,
     ) -> Option<Self::Value> {
-        Some(grounded_state.0)
+        Some(grounded_state.grounded)
     }
 
     fn format_value(&self, value: &Self::Value) -> String {
