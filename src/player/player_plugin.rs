@@ -23,7 +23,7 @@ fn load_player_config_from_lua() -> PlayerConfig {
                     x: config_table.get("x").unwrap_or(1.2),
                     y: config_table.get("y").unwrap_or(1.2),
                     z: config_table.get("z").unwrap_or(1.2),
-                    jump_force: config_table.get("jump_force").unwrap_or(250.0),
+                    jump_force: config_table.get("jump_force").unwrap_or(3.0),
                     gravity_scale: config_table.get("gravity_scale").unwrap_or(2.5),
                     mass: config_table.get("mass").unwrap_or(4.0),
                     dynamic_coefficient: config_table.get("dynamic_coefficient").unwrap_or(0.3),

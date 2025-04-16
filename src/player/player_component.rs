@@ -102,7 +102,7 @@ impl Default for PlayerConfig {
             x: 1.2,
             y: 1.2,
             z: 1.2,
-            jump_force: 250.0,
+            jump_force: 10.0,
             gravity_scale: 2.5,
             mass: 4.0,
             dynamic_coefficient: 0.3,
@@ -115,7 +115,10 @@ impl Default for PlayerConfig {
 pub struct Grounded(pub bool);
 
 #[derive(Default, Resource)]
-pub struct GroundedState(pub bool);
+pub struct GroundedState {
+    pub grounded: bool,
+    pub timer: f32,
+}
 
 #[derive(Component)]
 pub struct Movable;
