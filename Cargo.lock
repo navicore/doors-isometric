@@ -1061,9 +1061,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_mod_scripting"
-version = "0.11.1"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca5a29c9629d0dc2d7b7ab3cabf7fd55f1a99fac325467d13e19331b46f93f34"
+checksum = "e217946be7886f2fb50cc70955271edae508fb7838cbe31b9301f062ed1be3e3"
 dependencies = [
  "bevy",
  "bevy_mod_scripting_core",
@@ -1074,9 +1074,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_mod_scripting_core"
-version = "0.11.1"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99758b5927b0eeeff22c988461ff2c2996bc895d5adc5ed45a40440f6c9ac30f"
+checksum = "97524ea0e6fd0bb54105e01eb143c1dcb6dad6e6fb897c1f6425ab1c2b99a1bc"
 dependencies = [
  "bevy",
  "bevy_mod_debugdump",
@@ -1096,9 +1096,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_mod_scripting_derive"
-version = "0.11.1"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a250196d60a5ccb91ed270ddbf3dbf8106b676b2eebe3aba9ddc67c8f0e6abd"
+checksum = "9ff9f59d2acb456af685165c02a8f8ef91da1522af0caa6eab825436f13ccb2b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1107,9 +1107,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_mod_scripting_functions"
-version = "0.11.1"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdd0fec14b89bb325958b25f21edbb31e7c6e0ac65ccec61f03fe4bd66d221ac"
+checksum = "2faf119d7cbd8bb391e463f0bacd5ab9800af005a964701965bab79ba855cd2c"
 dependencies = [
  "bevy",
  "bevy_mod_scripting_core",
@@ -1123,9 +1123,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_mod_scripting_lua"
-version = "0.11.1"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b7f7fc2d9741f73417058dd81fb249e34f8c7027623296019ed70eb1cbdc9a2"
+checksum = "3bc16bdc621963a7d37e874f8653ec0de97dff01e3fc21c00f495fa8ebb7d036"
 dependencies = [
  "bevy",
  "bevy_mod_scripting_core",
