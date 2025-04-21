@@ -14,7 +14,7 @@ avian3d = "0.2"
 bevy = "0.15"
 bevy-tokio-tasks = "0.15"
 bevy_embedded_assets = "0.12"
-bevy_mod_scripting = { version = "0.11.1", features = ["lua54"]}
+bevy_mod_scripting = { version = "0.12.0", features = ["lua54"]}
 clap = { version = "4", features = ["derive", "color"] }
 iyes_perf_ui = "0.4"
 jsonpath_lib = "0.3"
