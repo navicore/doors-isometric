@@ -137,27 +137,25 @@ pub fn detect_grounded(
                 continue;
             }
             let involved_entities = [contacts.entity1, contacts.entity2];
-            if involved_entities.iter().any(|e| *e == player_entity) {
+            if involved_entities.contains(&player_entity) {
                 t_grounded = true;
                 break;
             }
         }
 
         // 2. Check if player is close enough to the floor
-        if !t_grounded {
-            if let Ok(floor_transform) = floor_query.get_single() {
-                let player_y = player_transform.translation.y;
-                let floor_y = floor_transform.translation.y;
-                if (player_y - floor_y).abs() <= GROUND_BUFFER {
-                    t_grounded = true;
-                }
-                // Check if the player is too far below the floor
-                if player_y < floor_y - 200.0 {
-                    next_state.set(GameState::GameOver {
-                        reason: GameOverReason::PlayerFell,
-                    });
-                    debug!("Player fell off the platform. Transitioning to GameOver.");
-                }
+        if !t_grounded && let Ok(floor_transform) = floor_query.get_single() {
+            let player_y = player_transform.translation.y;
+            let floor_y = floor_transform.translation.y;
+            if (player_y - floor_y).abs() <= GROUND_BUFFER {
+                t_grounded = true;
+            }
+            // Check if the player is too far below the floor
+            if player_y < floor_y - 200.0 {
+                next_state.set(GameState::GameOver {
+                    reason: GameOverReason::PlayerFell,
+                });
+                debug!("Player fell off the platform. Transitioning to GameOver.");
             }
         }
 
@@ -214,28 +212,28 @@ pub fn detect_enter_door(
 ) {
     if let Ok((player, transform, action_state)) = player_query.get_single_mut() {
         for collision in collision_events.read() {
-            if let Some(room_entity) = find_door_collision(collision, &door_query) {
-                if let Ok(room) = room_query.get(room_entity) {
-                    if action_state.just_pressed(&Action::Open) {
-                        debug!("Entering room: {:?}", room);
-                        *current_floorplan = CurrentFloorPlan {
-                            floorplan: current_floorplan.floorplan.clone(),
-                            you_are_here: Some(room.clone()),
-                            previous_room: current_floorplan.you_are_here.clone(),
-                            ..Default::default()
-                        };
+            if let Some(room_entity) = find_door_collision(collision, &door_query)
+                && let Ok(room) = room_query.get(room_entity)
+            {
+                if action_state.just_pressed(&Action::Open) {
+                    debug!("Entering room: {:?}", room);
+                    *current_floorplan = CurrentFloorPlan {
+                        floorplan: current_floorplan.floorplan.clone(),
+                        you_are_here: Some(room.clone()),
+                        previous_room: current_floorplan.you_are_here.clone(),
+                        ..Default::default()
+                    };
 
-                        start_position.position = Some(transform.translation);
+                    start_position.position = Some(transform.translation);
 
-                        command.entity(player).despawn();
-                        next_state.set(GameState::TransitioningOutSetup);
-                    } else {
-                        debug!("Requesting room info: {:?}", room);
-                        events.send(DisplayRoomInfoEvent {
-                            room: room.clone(),
-                            you_are_here: current_floorplan.you_are_here.clone(),
-                        });
-                    }
+                    command.entity(player).despawn();
+                    next_state.set(GameState::TransitioningOutSetup);
+                } else {
+                    debug!("Requesting room info: {:?}", room);
+                    events.send(DisplayRoomInfoEvent {
+                        room: room.clone(),
+                        you_are_here: current_floorplan.you_are_here.clone(),
+                    });
                 }
             }
         }

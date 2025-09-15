@@ -66,12 +66,12 @@ fn process_floorplan_event(
         return true;
     }
     // if current floor plan has changed then we need to update the on-deck floor plan
-    if let Some(plan) = &current_floorplan.floorplan {
-        if plan != floorplan {
-            next_floorplan.floorplan = Some(floorplan.clone());
-            next_floorplan.created = Some(time.elapsed());
-            return false;
-        }
+    if let Some(plan) = &current_floorplan.floorplan
+        && plan != floorplan
+    {
+        next_floorplan.floorplan = Some(floorplan.clone());
+        next_floorplan.created = Some(time.elapsed());
+        return false;
     }
 
     false
@@ -110,12 +110,12 @@ pub fn platform_transition_in_setup(
         let previous_room = current_floorplan.previous_room.clone();
 
         let mut connected_rooms_and_doors = HashMap::new();
-        if let Some(current_room) = &current_floorplan.you_are_here {
-            if let Ok(entries) = floorplan.get_doors_and_connected_rooms(&current_room.id) {
-                for (door, room) in entries {
-                    if let Ok(node_index) = floorplan.get_room_idx_by_id(&room.id) {
-                        connected_rooms_and_doors.insert(node_index, door);
-                    }
+        if let Some(current_room) = &current_floorplan.you_are_here
+            && let Ok(entries) = floorplan.get_doors_and_connected_rooms(&current_room.id)
+        {
+            for (door, room) in entries {
+                if let Ok(node_index) = floorplan.get_room_idx_by_id(&room.id) {
+                    connected_rooms_and_doors.insert(node_index, door);
                 }
             }
         }
