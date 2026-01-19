@@ -19,7 +19,7 @@ clap = { version = "4", features = ["derive", "color"] }
 iyes_perf_ui = "0.4"
 jsonpath_lib = "0.3"
 k8s-openapi = { version = "0.26", features = ["latest"] }
-kube = { version = "2", features = ["runtime", "derive"] }
+kube = { version = "3", features = ["runtime", "derive"] }
 leafwing-input-manager = "0.16"
 petgraph = "0.8"
 rlua = "0.20.1"
