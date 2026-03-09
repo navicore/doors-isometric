@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use clap::Parser;
 
 use super::test_mode_systems::{
-    fire_room25_floorplan_event, fire_room2_floorplan_event, fire_room5_floorplan_event,
+    fire_room2_floorplan_event, fire_room5_floorplan_event, fire_room25_floorplan_event,
 };
 
 pub struct TestModeIntegrationPlugin;

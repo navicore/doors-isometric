@@ -7,8 +7,8 @@ use bevy::prelude::*;
 use bevy_tokio_tasks::{TaskContext, TokioTasksRuntime};
 use clap::Parser;
 use kube::{
-    api::{Api, ListParams},
     Client,
+    api::{Api, ListParams},
 };
 use std::time::Duration;
 
