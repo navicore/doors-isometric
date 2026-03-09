@@ -1,7 +1,7 @@
 use avian3d::prelude::*;
 use bevy::prelude::*;
 use bevy::reflect::Reflect;
-use leafwing_input_manager::{prelude::InputMap, Actionlike, InputManagerBundle};
+use leafwing_input_manager::{Actionlike, InputManagerBundle, prelude::InputMap};
 
 // Define movement constants
 const PLAYER_WALK_SPEED: f32 = 4.0; // Horizontal movement speed

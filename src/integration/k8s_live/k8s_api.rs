@@ -2,8 +2,8 @@ use crate::integration::integration_utils::IntegrationResource;
 use bevy::log::debug;
 use kube::core::{ApiResource, DynamicObject};
 use kube::{
-    api::{Api, ListParams},
     Client,
+    api::{Api, ListParams},
 };
 use std::error::Error;
 

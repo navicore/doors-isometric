@@ -3,8 +3,8 @@ use crate::player::Player;
 use super::camera_component::{CameraAction, MainCamera};
 use bevy::prelude::*;
 use leafwing_input_manager::{
-    prelude::{ActionState, ButtonlikeChord, InputMap},
     InputManagerBundle,
+    prelude::{ActionState, ButtonlikeChord, InputMap},
 };
 
 const SPEED: f32 = 0.01;

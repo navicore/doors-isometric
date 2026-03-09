@@ -4,7 +4,7 @@ use super::player_component::{
 };
 use crate::{
     floorplan::{Door, Room},
-    state::{state_component::GameOverReason, GameState},
+    state::{GameState, state_component::GameOverReason},
     world::world_component::{
         CurrentFloorPlan, DisplayRoomInfoEvent, Floor, PlatformMarker, Wall, WallState,
     },
