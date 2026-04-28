@@ -1,3 +1,8 @@
+<!-- ghmig:moved -->
+> **This repository has moved to [https://git.navicore.tech/navicore/doors-isometric](https://git.navicore.tech/navicore/doors-isometric).**
+>
+> The GitHub copy is archived and no longer maintained.
+
 [![Dependabot Updates](https://github.com/navicore/doors-isometric/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/navicore/doors-isometric/actions/workflows/dependabot/dependabot-updates) [![Rust](https://github.com/navicore/doors-isometric/actions/workflows/rust.yml/badge.svg)](https://github.com/navicore/doors-isometric/actions/workflows/rust.yml) [![rust-clippy analyze](https://github.com/navicore/doors-isometric/actions/workflows/rust-clippy.yml/badge.svg)](https://github.com/navicore/doors-isometric/actions/workflows/rust-clippy.yml)
 
 Doors Isometric
@@ -21,4 +26,3 @@ to a deployment shifts you to a new platform where each room is a pod.
 * "shift" while at a door opens door and transports player to a new platform
 * Jump over the invisible walls at edge of platform and game ends
 * "q" quits
-
